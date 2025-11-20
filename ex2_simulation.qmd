@@ -1,0 +1,708 @@
+# Simulation example {#sec-ex2}
+
+```{r}
+#| label: load-packages
+#| message: false
+
+#Load packages
+library(ggdag)
+library(dagitty)
+library(rstanarm)
+library(tidybayes)
+library(ggdist)
+library(tidyverse)
+library(gt)
+library(rstan)
+
+```
+
+## Data-generating process
+
+The data-generating process is described via the directed acyclic graph (DAG) in @fig-DAG.ex2-1. In this DAG, glare perception $(\text{G})$ is directly influenced by social interaction $(\text{I})$ and window state $(\text{W})$, and indirectly by occupancy $(\text{O})$ through social interaction $(\text{I})$. Additionally, occupancy $(\text{O})$ and window state $(\text{W})$ directly influence CO~2~ concentration $(\text{C})$.
+
+```{r}
+#| label: fig-DAG.ex2-1
+#| fig-cap: 'Graphical representation via DAG of the data-generating process.'
+#| fig-cap-location: bottom
+#| fig-align: center
+#| fig-width: 4.5
+#| fig-height: 2.7
+#| out-width: '60%'
+#| fig-dpi: 900
+#| warning: false
+#| code-fold: true
+
+dag_coords.ex2 <-
+  data.frame(name = c('I', 'O', 'C', 'G', 'W'),
+             x = c(1, 1, 3.5, 6, 6),
+             y = c(1, 3, 2, 1, 3))
+
+DAG.ex2 <-
+  dagify(I ~ O,
+         C ~ O,
+         C ~ W,
+         G ~ W,
+         G ~ I + W,
+         coords = dag_coords.ex2)
+
+ggplot(data = DAG.ex2, aes(x = x, y = y, xend = xend, yend = yend)) +
+  geom_dag_text(colour = 'black', size = 10, parse = TRUE,
+                family = c('mono'),
+                label = c(expression(bold(C)), expression(bold(G)), expression(bold(I)), expression(bold(O)), expression(bold(W)))) +
+  geom_dag_edges(arrow_directed = grid::arrow(length = grid::unit(10, 'pt'), type = 'open'),
+                 edge_colour = 'black',
+                 family = c('mono'), 
+                 fontface = c('bold')) + 
+  annotate('text', x = 1, y = 0.7, label = 'social interaction', 
+           size = 4, hjust = 0.5, colour = 'grey50') +
+  annotate('text', x = 3.5, y = 1.7, label = 'CO2', 
+           size = 4, hjust = 0.5, colour = 'grey50') +
+  annotate('text', x = 1, y = 3.3, label = 'occupancy', 
+           size = 4, hjust = 0.5, colour = 'grey50') +
+    annotate('text', x = 6, y = 3.3, label = 'window state', 
+           size = 4, hjust = 0.5, colour = 'grey50') +
+    annotate('text', x = 6, y = 0.7, label = 'glare perception', 
+           size = 4, hjust = 0.5, colour = 'grey50') +
+  coord_cartesian(xlim = c(0.5, 6.5), ylim = c(0.8, 3.2))  +
+  theme_dag()
+
+```
+
+The DAG in @fig-DAG.ex2-1 can be written as:
+
+-   $I \sim f_{I}(O)$, read as 'social interaction $(\text{I})$ is some function of occupancy $(\text{O})$'.
+-   $C \sim f_{C}(O, W)$, read as 'CO~2~ concentration $(\text{C})$ is some function of occupancy $(\text{O})$ and window $(\text{W})$'.
+-   $G \sim f_{G}(I, W)$, read as 'glare perception $(\text{G})$ is some function of social interaction $(\text{I})$ and window $(\text{W})$'.
+
+## Synthetic data set
+
+To generate synthetic data, we defined the custom function `data.sim_ex2()`. This function takes as inputs the sample size `n` and generates synthetic data according to the DAG in @fig-DAG.ex2-1.
+
+```{r}
+data.sim_ex2 <- function(n) {
+  b_socint.glare = -2 #direct causal effect of I on G
+  b_win.glare = c(0, 20) #direct causal effect of W on G
+  #Simulate occupancy
+  O <- factor(sample(c('low', 'high'), size = n, replace = TRUE))  
+  #Simulate window state
+  W <- factor(sample(c('closed', 'open'), size = n, replace = TRUE))  
+  #Simulate CO2
+  C <- rnorm(n = n, mean = 400 + ifelse(O == 'low', 0, 50) + ifelse(W == 'closed', 0, 30), sd = 10)
+  #Simulate social interaction
+  I <- rpois(n = n, lambda = 7 + ifelse(O == 'low', 0, 3))  
+  #Simulate glare perception 
+  G <- rnorm(n = n, mean = 50 + b_socint.glare * I + ifelse(W == 'closed', b_win.glare[1], b_win.glare[2]), sd = 5)
+  #Return tibble with simulated values
+  return(tibble(O, I, C, W, G))
+  }
+```
+
+From this data generation mechanism, we simulated the target population, which consists of one million observations.
+
+```{r}
+set.seed(2025) #set random number for reproducibility
+#Simulate the population
+ex2_population <- data.sim_ex2(n = 1e6)
+#Set occupancy reference category to 'low'
+ex2_population$O <- relevel(ex2_population$O, ref = 'low')
+#Set window state reference category to 'closed'
+ex2_population$W <- relevel(ex2_population$W, ref = 'closed')
+#View the data frame
+ex2_population
+```
+
+From this population, we obtained one data set of a five thousand observations using simple random sampling.
+
+```{r}
+n_sims <- 1e3 #number of data sets to simulate
+
+#Set random number for reproducibility
+set.seed(2025)  
+#Generate a vector of random numbers for reproducibility
+ex2_random.seed <- sample(1:1e5, size = n_sims, replace = FALSE)
+```
+
+```{r}
+set.seed(ex2_random.seed[1])
+#Sample one data set of 5,000 observations
+ex2_sample.random <- 
+  ex2_population %>% 
+  slice_sample(n = 5e3) #take a simple random sample of size 5,000 
+
+#View the data frame
+ex2_sample.random
+```
+
+## Data analysis
+
+In this example, the target of our analysis is the total average causal effect, ACE (also known as total average treatment effect, ATE) of social interaction $(\text{I})$ on glare perception $(\text{G})$, which stands for the expected increase of $\text{G}$ in response to a unit increase in $\text{I}$ due to an intervention. The causal effect of interest is visualized in @fig-DAG.ex2-2.
+
+```{r}
+#| label: fig-DAG.ex2-2
+#| fig-cap: 'Graphical representation via DAG of the data-generating process. The green line indicates the causal question of interest, and the number on the path indicates the total average causal effect.'
+#| fig-cap-location: bottom
+#| fig-align: center
+#| fig-width: 4.5
+#| fig-height: 2.7
+#| out-width: '60%'
+#| fig-dpi: 900
+#| warning: false
+#| code-fold: true
+
+ggplot(data = DAG.ex2, aes(x = x, y = y, xend = xend, yend = yend)) +
+  #visualise causal effect path
+  geom_segment(x = 1, xend = 6, y = 1, yend = 1,
+               linewidth = 14, lineend = 'round', colour = '#009E73', alpha = 0.05) +
+  geom_dag_text(colour = 'black', size = 10, parse = TRUE,
+                family = c('mono'),
+                label = c(expression(bold(C)), expression(bold(G)), expression(bold(I)), expression(bold(O)), expression(bold(W)))) +
+  geom_dag_edges(arrow_directed = grid::arrow(length = grid::unit(10, 'pt'), type = 'open'),
+                 edge_colour = 'black',
+                 family = c('mono'), 
+                 fontface = c('bold')) + 
+  annotate('text', x = 1, y = 0.7, label = 'social interaction', 
+           size = 4, hjust = 0.5, colour = 'grey50') +
+  annotate('text', x = 3.5, y = 1.7, label = 'CO2', 
+           size = 4, hjust = 0.5, colour = 'grey50') +
+  annotate('text', x = 1, y = 3.3, label = 'occupancy', 
+           size = 4, hjust = 0.5, colour = 'grey50') +
+  annotate('text', x = 6, y = 3.3, label = 'window state', 
+           size = 4, hjust = 0.5, colour = 'grey50') +
+  annotate('text', x = 6, y = 0.7, label = 'glare perception', 
+           size = 4, hjust = 0.5, colour = 'grey50') +
+  #causal effect number
+  annotate('text', x = 3.5, y = 1.2, label = '-2', 
+           size = 4.5, hjust = 0.5, colour = 'black', parse = TRUE) +
+  coord_cartesian(xlim = c(0.5, 6.5), ylim = c(0.8, 3.2))  +
+  theme_dag()
+
+```
+
+### Identification
+
+The first step to answer the causal question of interest is identification. Identification answers a ‘theoretical’ question by determining whether a causal effect can, in principle, be estimated from observed data. The backdoor criterion and its generalization, the adjustment criterion, allow us to understand whether our causal effect of interest can be identified and, if so, which variables we should (or should not) statistically adjust for (i.e., the adjustment set) to estimate the causal effect from the data.
+
+Given its simplicity, we will first apply the backdoor criterion to identify valid adjustment sets to estimate the causal effect of interest. If the backdoor criterion is not applicable, we will apply its generalization, the adjustment criterion.
+
+#### Backdoor criterion
+
+Applying the backdoor criterion revealed the absence of any backdoor path (i.e., a non-causal path) from social interaction $(\text{I})$ to glare perception $(\text{G})$. As a result, there is no confounding and no adjustement is required.
+
+Given the DAG in @fig-DAG.ex2-2, we can use the `adjustmentSets()` function to identify the adjustment set algorithmically. It is essential to note that this function applies the adjustment criterion and not the backdoor criterion. As such, the `adjustmentSets()` function can find adjustment sets even when the backdoor criterion is not applicable.
+
+```{r}
+#| code-fold: false
+
+adjustmentSets(DAG.ex2,
+               exposure = 'I', #social interaction
+               outcome = 'G', #glare perception
+               type = 'all', 
+               effect = 'total', 
+               max.results = Inf)
+
+```
+
+As expected, the resulting adjustment set includes the empty set (i.e., no adjustment is required). However, the backdoor criterion reveals that there are six other possible adjustment sets to get the correct estimate of the total average causal effect of $\text{I}$ on $\text{G}$. Specifically:
+
+-   adjust for occupancy $(\text{O})$
+-   adjust for CO~2~ concentration $(\text{C})$ and occupancy $(\text{O})$
+-   adjust for window state $(\text{W})$
+-   adjust for CO~2~ concentration $(\text{C})$ and window state $(\text{W})$
+-   adjust for occupancy $(\text{O})$ and window state $(\text{W})$
+-   adjust for CO~2~ concentration $(\text{C})$, occupancy $(\text{O})$ and window state $(\text{W})$
+
+Therefore, to get the correct estimate of the total average causal effect, any of the aforementioned adjustment set will work; failing to do so will lead to bias.
+
+### Estimation
+
+Following the identification step is the estimation step. This step addresses a statistical question by determining how the causal effect identified in the previous step can be estimated. To perform this step, we used a parametric (model-based) estimator, specifically, linear regression. This was possible because we designed the illustrative examples to be simple and with a linear relationship between the variables. This way, we limited the complexity of the examples themselves and shifted the focus to the application of the backdoor criterion to define 'correct' adjustment sets.
+
+For transparency and understanding, all (implicit) assumptions used for this illustrative example are (explicitly) provided in @tbl-summary.ex2.
+
+```{r}
+#| label: tbl-summary.ex2
+#| tbl-cap: Summary description of the simulation example
+#| echo: false
+
+is_empty <- function(x){
+    return(ifelse(x == '', TRUE, FALSE))
+  }
+
+data.frame(colA = c('Research question', rep('Assumptions', 6), rep('Variables', 5)),
+           colB = c('Total average causal effect (ACE) of social interaction (I) on glare perception (G).',
+                    'Random sample (simple random sampling): everyone in the population has an equal chance of being selected into the sample.',
+                    'Limited random variability: large sample size.',
+                    'Independence of observations: each observation represents independent bits of information.',
+                    'No confounding: the DAG includes all shared causes among the variables.',
+                    'No model error: perfect functional form specification.',
+                    'No measurement error: all variables are measured perfectly.', 
+                    'Social interaction (T): discrete (count) variable [unit: -]',
+                    "Occupancy (O): categorical variable ['low'; 'high']",
+                    'CO2 concentration (H): continous variable [unit: ppm]',
+                    "Window state (W): categorical variable ['closed'; 'open']",
+                    "Glare perception (G): continous variable [unit: -]")) %>%
+  group_by(colA) %>% 
+  mutate(colA = ifelse(row_number() == 1, colA, '')) %>% 
+  ungroup() %>% 
+  gt() %>%
+  tab_options(column_labels.hidden = TRUE) %>%
+  tab_style(style = list(cell_borders(sides = c('top', 'bottom'), weight = px(0))),
+            locations = list(cells_body(columns = colA, rows = is_empty(colA)))) %>%
+  tab_style(style = list(cell_text(weight = 'bold', v_align = 'top')),
+            locations = list(cells_body(columns = colA))) %>%
+  tab_style(style = list(cell_text(v_align = 'top')),
+            locations = list(cells_body(columns = colB))) %>%  
+  tab_style(style = list(cell_fill(color = 'white')),
+            locations = list(cells_body(columns = colA))) %>%
+  cols_width(colA ~ pct(22)) 
+
+```
+
+To carry out the estimation step, we utilised linear regression within both the frequentist and Bayesian frameworks. Specifically, we will run three regression models:
+
+-   `Model.1` will include only social interaction $(\text{I})$ as predictor;
+-   `Model.2` will include social interaction $(\text{I})$ and CO~2~ concentration $(\text{C})$ as predictors.
+-   `Model.3` will include social interaction $(\text{I})$, CO~2~ concentration $(\text{C})$ and window state $(\text{W})$ as predictors.
+
+The results of the fitted statistical models (i.e., `Model.1`, `Model.2` and `Model.3`) are presented here.
+
+#### Frequentist framework
+
+<details>
+
+<summary>Click to expand</summary>
+
+```{r}
+
+#Fit the linear regression model with I and G (Model 1)
+ex2_Model.1 <-
+  lm(formula = G ~ I,
+     data = ex2_sample.random)
+#View of the model summary
+summary(ex2_Model.1)
+```
+
+```{r}
+
+#Fit the linear regression model with I, C and G (Model 2)
+ex2_Model.2 <-
+  lm(formula = G ~ I + C,
+     data = ex2_sample.random)
+#View of the model summary
+summary(ex2_Model.2)
+```
+
+```{r}
+
+#Fit the linear regression model with I, C, W and G (Model 3)
+ex2_Model.3 <-
+  lm(formula = G ~ I + C + W,
+     data = ex2_sample.random)
+#View of the model summary
+summary(ex2_Model.3)
+```
+
+The estimated coefficients for the three models are then plotted in @fig-DAG.ex2-estimate.
+
+```{r}
+#| label: fig-DAG.ex2-estimate
+#| fig-cap: 'Estimates of the social interaction coefficient for the three models. The white dots represent the point estimate, and the black lines represent the 95% confidence intervals. The blue dashed line represents the parameter used to generate the data.'
+#| fig-cap-location: bottom
+#| fig-align: center
+#| fig-width: 6
+#| fig-height: 2
+#| fig-dpi: 900
+#| warning: false
+#| code-fold: true
+
+b_socint.glare = -2
+
+data.frame(model = c('Model.1', 'Model.2', 'Model.3'),
+           estimate = c(coef(ex2_Model.1)['I'], 
+                        coef(ex2_Model.2)['I'], 
+                        coef(ex2_Model.3)['I']),
+           lower.95.CI = c(confint(ex2_Model.1, level = 0.95, type = 'Wald')['I', 1],
+                           confint(ex2_Model.2, level = 0.95, type = 'Wald')['I', 1],
+                           confint(ex2_Model.3, level = 0.95, type = 'Wald')['I', 1]),
+           upper.95.CI = c(confint(ex2_Model.1, level = 0.95, type = 'Wald')['I', 2],
+                           confint(ex2_Model.2, level = 0.95, type = 'Wald')['I', 2],
+                           confint(ex2_Model.3, level = 0.95, type = 'Wald')['I', 2])) %>%
+  
+ggplot(aes(x = estimate, y = model, xmin = lower.95.CI, xmax = upper.95.CI)) + 
+  geom_vline(xintercept = b_socint.glare, alpha = 0.8, linetype = 'dashed', colour = 'blue') + 
+  geom_linerange() +
+  geom_point(shape = 21, size = 2, fill = 'white', stroke = 1) +
+  scale_x_continuous('Estimate', 
+                     breaks = seq(from = -5, to = 5, by = 0.25),
+                     limits = c(-3, -1.5)) +
+  theme(panel.grid = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_rect(colour = 'black', fill = NA),
+        axis.title.y = element_blank())
+
+```
+
+@fig-DAG.ex2-estimate shows the estimates (point estimate and 95 confidence interval) of the coefficient for social interaction for `Model.1`, `Model.2` and `Model.3`.
+
+For `Model.1` we found a negative coefficient between social interaction $(\text{I})$ and glare perception $(\text{G})$ equal to `r sprintf(coef(ex2_Model.1)['I'], fmt = '%#.3f')` with 95% CI \[`r sprintf(confint(ex2_Model.1, level = 0.95, type = 'Wald')['I', ], fmt = '%#.3f')`\]. Since the 95% CI excludes zero, the regression coefficient is statistically significantly different from zero at the 0.05 level (p-value = `r sprintf('%.3g', summary(ex2_Model.1)$coef['I', 4])`). Additionally, since the 95% CI includes the data-generating parameter for social interaction (i.e., `b_socint.glare = -2`), we can deduce that the estimated coefficient for social interaction is not statistically significantly different from -2 at the 0.05 level. We can test this more formally by using the `linearHypothesis()` function. Specifically,
+
+```{r}
+#Test for I = -2
+car::linearHypothesis(ex2_Model.1, 'I = -2') # car:: access the function from the car package without loading it in the environment 
+```
+
+The resulting p-value is `r sprintf('%.3g', car::linearHypothesis(ex2_Model.1, 'I = -2')[2,'Pr(>F)'])`, which indicates that we fail to reject the null hypothesis (i.e., `I = -2`) at the 0.05 level. This result suggests that the regression coefficient for social interaction (i.e., `r sprintf(coef(ex2_Model.1)['I'], fmt = '%#.3f')`) is not statistically significantly different from -2. Since the estimated causal effect from `Model.1` is unbiased, we would correctly conclude that an increase of unit in social interaction causes a decrease in glare perception by `r sprintf(coef(ex2_Model.1)['I'], fmt = '%#.3f')` units (95% CI \[`r sprintf(confint(ex2_Model.1, level = 0.95, type = 'Wald')['I', ], fmt = '%#.3f')`\]).
+
+For `Model.2` we found a negative coefficient between coefficient between social interaction $(\text{I})$ and glare perception $(\text{G})$ equal to `r sprintf(coef(ex2_Model.2)['I'], fmt = '%#.3f')` with 95% CI \[`r sprintf(confint(ex2_Model.2, level = 0.95, type = 'Wald')['I', ], fmt = '%#.3f')`\]. Since the 95% CI excludes zero, the regression coefficient is statistically significantly different from zero at the 0.05 level (p-value = `r sprintf('%.3g', summary(ex2_Model.2)$coef['I', 4])`). Additionally, since the 95% CI does not include the data-generating parameter for social interaction (i.e., `b_socint.glare = -2`), we can deduce that the estimated coefficient for social interaction is statistically significantly different from -2 at the 0.05 level (although this will be the case for all numbers within the 95% confidence interval). We can test this more formally by using the `linearHypothesis()` function. Specifically,
+
+```{r}
+#Test for I = -2
+car::linearHypothesis(ex2_Model.2, 'I = -2') # car:: access the function from the car package without loading it in the environment 
+```
+
+The resulting p-value is `r sprintf('%.3g', car::linearHypothesis(ex2_Model.2, 'I = -2')[2,'Pr(>F)'])`, which indicates that we can reject the null hypothesis (i.e., `I = -2`) at the 0.05 level. This result suggests that the regression coefficient for social interaction (i.e., `r sprintf(coef(ex2_Model.2)['I'], fmt = '%#.3f')`) is statistically significantly different from -2. Since the estimated causal effect from `Model.2` is biased, we would erroneously conclude that an increase of unit in social interaction causes a decrease in glare perception by `r sprintf(coef(ex2_Model.2)['I'], fmt = '%#.3f')` units (95% CI \[`r sprintf(confint(ex2_Model.2, level = 0.95, type = 'Wald')['I', ], fmt = '%#.3f')`\]).
+
+For `Model.3` we found a negative coefficient between social interaction $(\text{I})$ and glare perception $(\text{G})$ equal to `r sprintf(coef(ex2_Model.3)['I'], fmt = '%#.3f')` with 95% CI \[`r sprintf(confint(ex2_Model.3, level = 0.95, type = 'Wald')['I', ], fmt = '%#.3f')`\]. Since the 95% CI excludes zero, the regression coefficient is statistically significantly different from zero at the 0.05 level (p-value = `r sprintf('%.3g', summary(ex2_Model.3)$coef['I', 4])`). Additionally, since the 95% CI includes the data-generating parameter for social interaction (i.e., `b_socint.glare = -2`), we can deduce that the estimated coefficient for social interaction is not statistically significantly different from -2 at the 0.05 level. We can test this more formally by using the `linearHypothesis()` function. Specifically,
+
+```{r}
+#Test for I = -2
+car::linearHypothesis(ex2_Model.3, 'I = -2') # car:: access the function from the car package without loading it in the environment 
+```
+
+The resulting p-value is `r sprintf('%.3g', car::linearHypothesis(ex2_Model.3, 'I = -2')[2,'Pr(>F)'])`, which indicates that we fail to reject the null hypothesis (i.e., `I = -2`) at the 0.05 level. This result suggests that the regression coefficient for social interaction (i.e., `r sprintf(coef(ex2_Model.3)['I'], fmt = '%#.3f')`) is not statistically significantly different from -2. Since the estimated causal effect from `Model.3` is unbiased, we would correctly conclude that an increase of unit in social interaction causes a decrease in glare perception by `r sprintf(coef(ex2_Model.3)['I'], fmt = '%#.3f')` units (95% CI \[`r sprintf(confint(ex2_Model.3, level = 0.95, type = 'Wald')['I', ], fmt = '%#.3f')`\]).
+
+Importantly, for `Model.1`, `Model.2`, and `Model.3`, the 95% confidence interval means that if we were to repeat the sampling process and calculate the interval many times, 95% of those calculated intervals would contain the true population parameter. To highlight this, we can repeat the analysis by fitting the three models to one thousand data sets randomly selected from our population.
+
+The for-loop shown in the code below performs the following operations. First, sample (using simple random sample) a data set of 5,000 observations from the target population. Subsequently, perform linear regression using `Model.1`, `Model.2` and `Model.3` and store the estimated coefficients for `interaction`, its standard error and 95% confidence interval in the data frame `coefs_ex2`. This operation is repeated a thousand times, resulting in the data frame `coefs_ex2` containing the estimates (point estimate, standard error and confidence interval) of a thousand random samples of size 5,000 using `Model.1`, `Model.2` and `Model.3`.
+
+```{r}
+n_model <- c('mod.1', 'mod.2', 'mod.3')     
+
+n_row <- n_sims*length(n_model)
+
+#Create an empty data frame
+empty.df <- data.frame(matrix(NA, nrow = n_row, ncol = 7))
+#Rename the data frame columns
+colnames(empty.df) <- c('sim.id', 'estimate', 'se', 'CI_2.5', 'CI_97.5',
+                        'model', 'coverage')
+
+#Sample a thousand data sets of 5,000 observations and perform linear regression 
+coefs_ex2 <- empty.df #assign the empty data frame
+k = 1
+for (i in 1:n_sims){
+  set.seed(ex2_random.seed[i]) #set unique seed for each simulation 
+#Sample data set from population   
+  sample.random <- 
+    ex2_population %>% 
+    slice_sample(n = 5e3) #take a simple random sample of size 5,000
+#Fit models
+  for (j in 1:length(n_model)){
+    if (n_model[j] == 'mod.1'){
+      fit <- lm(formula = G ~ I,
+                data = sample.random)
+    } else if (n_model[j] == 'mod.2'){
+      fit <- lm(formula = G ~ I + C,
+                data = sample.random)  
+    } else {
+      fit <- lm(formula = G ~ I + C + W,
+                data = sample.random)
+    }  
+#Compile matrix  
+  coefs_ex2[k, 1] <- i #simulation ID
+  coefs_ex2[k, 2] <- coef(fit)['I'] #point estimate
+  coefs_ex2[k, 3] <- summary(fit)$coef['I','Std. Error'] #standard error
+  coefs_ex2[k, 4:5] <- confint(fit, level = 0.95, type = 'Wald')['I', ] #confidence interval (Wald)
+  coefs_ex2[k, 6] <- n_model[j] #sample size
+  k = k + 1
+  }
+}
+coefs_ex2 <- as_tibble(coefs_ex2)
+#View the data frame
+coefs_ex2
+
+```
+
+The `coverage` is defined by setting its value to `1` if the confidence interval overlaps the data-generating parameter for `interaction` (i.e., `b_socint.glare = -2`) and `0` otherwise.
+
+```{r}
+
+#Calculate coverage
+coefs_ex2 <-
+  coefs_ex2 %>%
+  mutate(coverage = case_when(CI_2.5 > b_socint.glare | CI_97.5 < b_socint.glare ~ 0,
+                              CI_2.5 <= b_socint.glare & CI_97.5 >= b_socint.glare ~ 1,
+                              .default = NA))
+#View the data frame
+coefs_ex2
+```
+
+The results are then plotted in @fig-DAG.ex2-CI.
+
+```{r}
+#| label: fig-DAG.ex2-CI
+#| fig-cap: 'Estimates of the social interaction coefficient (only the first hundreds of the thousand simulations are shown). The white dots represent the point estimate, and the black lines represent the 95% confidence intervals. In red are highlighted the confidence intervals that do not overlap the parameter used to generate the data (dashed blue line).'
+#| fig-cap-location: bottom
+#| fig-align: center
+#| fig-width: 6
+#| fig-height: 6
+#| fig-dpi: 900
+#| warning: false
+#| code-fold: true
+
+model_names <- c('mod.1' = 'Model.1', 
+                 'mod.2' = 'Model.2',
+                 'mod.3' = 'Model.3')
+
+ggplot(data = subset(coefs_ex2, sim.id <= 2e2), aes(x = sim.id, y = estimate, ymin = CI_2.5, ymax = CI_97.5, colour = as.factor(coverage))) + 
+  geom_hline(yintercept = b_socint.glare, alpha = 0.8, linetype = 'dashed', colour = 'blue') + 
+  geom_linerange() +
+  geom_point(shape = 21, size = 1, fill = 'white', stroke = 0.5) +
+  scale_colour_manual('', values = c('black', '#FF4040'),
+                      breaks = c('1','0')) +
+  scale_y_continuous('Estimate') +
+  scale_x_continuous('Simulation ID') +
+  facet_wrap(model~., 
+             labeller = labeller(model = model_names),
+             nrow = 3,
+             scales = 'fixed') +
+  theme(legend.position = 'none', 
+        panel.grid = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_rect(colour = 'black', fill = NA),
+        axis.title.y = element_blank())
+```
+
+```{r}
+#| echo: false
+
+#Calculate average coverage 
+coverage <- coefs_ex2 %>%
+  select(model, estimate, coverage) %>%
+  group_by(model) %>%
+  summarise(mean.coverage = sprintf('%0.1f%%', mean(coverage)*100))
+```
+
+@fig-DAG.ex2-CI shows the first 200 estimates (point estimate and confidence interval) of the coefficient for social interaction for `Model.1`, `Model.2` and `Model.3`. If all the thousand simulations are considered, the frequency of the coverage of the calculated confidence intervals (i.e., how many times the confidence intervals overlap the data-generating parameter) is `r coverage[1, 'mean.coverage']`, `r coverage[2, 'mean.coverage']` and `r coverage[3, 'mean.coverage']` for `Model.1`, `Model.2` and `Model.3`, respectively. Since the estimate of the causal effect for `Model.2` are biased, the calculated confidence intervals for this model do not have the expected coverage. In fact, confidence intervals only quantify the uncertainty due to random error (i.e., sample variability), not systematic error (i.e., bias). Instead, the estimate from `Model.1` and `Model.3` are unbiased and the calculated 95% confidence intervals have the expected coverage (i.e., overlap the data-generating parameter 95% of the times).
+
+We can also visualize all the 1,000 the estimates of the coefficient for social interaction for `Model.1`, `Model.2` and `Model.3` (i.e., the white dots in @fig-DAG.ex2-CI).
+
+```{r}
+#| label: fig-DAG.ex2-mean-estimate
+#| fig-cap: 'Histogram of the 1,000 estimates of the social interaction coefficient for the three models. The blue dashed line represents the parameter used to generate the data.'
+#| fig-cap-location: bottom
+#| fig-align: center
+#| fig-width: 6
+#| fig-height: 4.5
+#| fig-dpi: 900
+#| warning: false
+#| code-fold: true
+
+ggplot(data = coefs_ex2, aes(x = estimate, y = ifelse(after_stat(count) > 0, after_stat(count), NA))) +
+  geom_histogram(binwidth = 0.02, fill = 'white', colour = 'grey50') +
+  geom_vline(xintercept = b_socint.glare, colour = 'blue', linetype = 'dashed') +
+  scale_x_continuous('Estimate', 
+                     breaks = seq(from = -5, to = 5, by = 0.25),
+                     limits = c(-3, -1.5)) +
+  facet_grid(model~., 
+             labeller = labeller(model = model_names),
+             scales = 'fixed') +
+  theme(axis.title.y = element_blank(), 
+        axis.text.y = element_blank(), 
+        axis.ticks.y = element_blank(),
+        panel.grid = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_rect(colour = 'black', fill = NA))
+
+```
+
+```{r}
+#| echo: false
+
+#Calculate average coverage 
+mean.estimate <- coefs_ex2 %>%
+  select(model, estimate) %>%
+  group_by(model) %>%
+  summarise(mean.estimate = mean(estimate),
+            sd.estimate = sd(estimate))
+```
+
+In @fig-DAG.ex2-mean-estimate, the estimated coefficients are visualized through a histogram. Here, we can see that the estimates for `Model.2` are not clustered around the data-generating parameter (blue dashed line) having a mean estimate of `r sprintf(mean.estimate[2, 'mean.estimate'], fmt = '%#.3f')` (with `r sprintf(mean.estimate[2, 'sd.estimate'], fmt = '%#.3f')` standard deviation). In contrast, the estimates for `Model.1` and `Model.3` having a mean estimate of `r sprintf(mean.estimate[1, 'mean.estimate'], fmt = '%#.3f')` (with `r sprintf(mean.estimate[1, 'sd.estimate'], fmt = '%#.3f')` standard deviation) and `r sprintf(mean.estimate[3, 'mean.estimate'], fmt = '%#.3f')` (with `r sprintf(mean.estimate[3, 'sd.estimate'], fmt = '%#.3f')` standard deviation), respectively, are centered around the data-generating parameter.
+
+As expected, since there is no backdoor path open, regressing glare perception $(\text{G})$ on social interaction $(\text{I})$ (i.e., using `Model.1`) leads to the correct estimate of the total average causal effect. However, when CO~2~ is included as a predictor (i.e., using `Model.2`) the estimates are biased. Adjusting for CO~2~ alone opens the backdoor path $\text{I} \leftarrow \text{O} \rightarrow \text{C} \leftarrow \text{W} \rightarrow \text{G}$ that was previously closed. As a result, association can flow from $\text{I}$ to $\text{G}$ through $\text{O}$, $\text{C}$ and $\text{W}$. This happens because CO~2~ is a collider. However, when we also include window state $(\text{W})$ as a predictor (i.e., using `Model.3`) the backdoor path is closed, leading to the correct estimate of the total average causal effect of social interaction $(\text{I})$ on glare perception $(\text{G})$.
+
+This bias is known as M-bias. Generally, adjusting for an inappropriate variable (a collider on a non-causal path) opens an M-shaped backdoor path and creates spurious association.
+
+</details>
+
+#### Bayesian framework
+
+```{r}
+#| message: false
+
+#Fit the linear regression model with I and G (Model 1)
+ex2_Model.1 <- stan_glm(formula = G ~ I,
+                        family = gaussian(),
+                        data = ex2_sample.random,
+                        #Prior coefficients
+                        prior = normal(location = 0, scale = 4),
+                        #Prior intercept
+                        prior_intercept = normal(location = 50, scale = 10),
+                        #Prior sigma
+                        prior_aux = exponential(rate = 0.5),
+                        iter = 4000, warmup = 1000, 
+                        save_warmup = TRUE,
+                        chains = 4, cores = 4,
+                        seed = 2025) #for reproducibility   
+#View of the model
+ex2_Model.1
+```
+
+```{r}
+#| message: false
+
+#Fit the linear regression model with I, C and G (Model 2)
+ex2_Model.2 <- stan_glm(formula = G ~ I + C,
+                        family = gaussian(),
+                        data = ex2_sample.random,
+                        #Prior coefficients
+                        prior = normal(location = c(0, 0), scale = c(4, 1)),
+                        #Prior intercept
+                        prior_intercept = normal(location = 50, scale = 10),
+                        #Prior sigma
+                        prior_aux = exponential(rate = 0.5),
+                        iter = 4000, warmup = 1000, 
+                        save_warmup = TRUE,
+                        chains = 4, cores = 4,
+                        seed = 2025) #for reproducibility
+#View of the model
+ex2_Model.2
+```
+
+```{r}
+#| message: false
+
+#Fit the linear regression model with I, C, W and G (Model 3)
+ex2_Model.3 <- stan_glm(formula = G ~ I + C + W,
+                        family = gaussian(),
+                        data = ex2_sample.random,
+                        #Prior coefficients
+                        prior = normal(location = c(0, 0, 0), scale = c(4, 1, 40)),
+                        #Prior intercept
+                        prior_intercept = normal(location = 50, scale = 10),
+                        #Prior sigma
+                        prior_aux = exponential(rate = 0.5),
+                        iter = 4000, warmup = 1000, 
+                        save_warmup = TRUE,
+                        chains = 4, cores = 4,
+                        seed = 2025) #for reproducibility
+#View of the model
+ex2_Model.3
+```
+
+In Bayesian analysis, there are important diagnostics that have to be carried out in order to assessed the convergence and efficiency of the Markov Chains. This is done by using the `monitor()` function which computes summaries of MCMC (Markov Chain Monte Carlo) draws and monitor convergence. Specifically, we will look at `Rhat`, `Bulk_ESS` and `Tail_ESS` metrics.
+
+```{r}
+#Diagnostics for model 1
+monitor(ex2_Model.1$stanfit)  
+```
+
+```{r}
+#Diagnostics for model 2
+monitor(ex2_Model.2$stanfit) 
+```
+
+```{r}
+#Diagnostics for model 3
+monitor(ex2_Model.3$stanfit) 
+```
+
+`Rhat` is a metric used to assess the convergence of Markov Chain Monte Carlo (MCMC) simulations. It helps determine if the MCMC chains have adequately explored the target posterior distribution. Specifically, it compares the between- and within-chain estimates for model parameters: If chains have not mixed well (i.e., the between- and within-chain estimates do not agree), R-hat is larger than 1. A general rule of thumb is to use the sample only if R-hat is less than 1.05; a larger value suggests that the chains have not mixed well, and the results might not be reliable. In our three models, all `Rhat` are equal to 1 indicating that the chains have mixed well and have adequately explored the target posterior distribution.
+
+`Bulk_ESS` and `Tail_ESS` stand for 'Bulk Effective Sample Size' and 'Tail Effective Sample Size,' respectively. Since MCMC samples are not truly independent (they are correlated), these metrics assess the sampling efficiencies, that is, they help evaluate how efficiently the MCMC sampler is exploring the parameters space.
+
+-   `Bulk_ESS` is useful measure for sampling efficiency in the bulk (center) of the distribution (e.g., efficiency of mean and median estimates);
+-   `Tail_ESS` is useful measure for sampling efficiency in the tails of the distribution (e.g., efficiency of variance and tail quantile estimates). A general rule of thumb is that both `Bulk-ESS` and `Tail-ESS` should be at least 100 (approximately) per Markov Chain in order to be reliable and indicate that estimates of respective posterior quantiles are reliable. In our three models, all `Bulk-ESS` and `Tail-ESS` are well above 400 (i.e., 100 multiplied by 4, the number of chains we used) indicating that estimates of posterior quantiles are reliable.
+
+Since we have established that the posteriors are reliable, we can now explore the model estimates.
+
+The estimated coefficients for the three models are then plotted in @fig-DAG.ex2-estimate-Bayesian.
+
+```{r}
+#| label: fig-DAG.ex2-estimate-Bayesian
+#| fig-cap: 'Posterior distribution of the social interaction coefficient for the three models. The black line and dot at the bottom of each distribution represent the highest density interval (HDI) and the mean, respectively.'
+#| fig-cap-location: bottom
+#| fig-align: center
+#| fig-width: 6
+#| fig-height: 2.5
+#| fig-dpi: 900
+#| warning: false
+#| code-fold: true
+
+#Extract draws from model 1 
+post_ex2_Model.1 <-
+  ex2_Model.1 %>% 
+  spread_draws(I) %>% #extract draws from the fitted model
+  mutate(model = 'Model.1') #add a new column to specify that the model
+
+#Extract draws from model 2
+post_ex2_Model.2 <-
+  ex2_Model.2 %>% 
+  spread_draws(I) %>% #extract draws from the fitted model
+  mutate(model = 'Model.2') #add a new column to specify that the model
+
+#Extract draws from model 3
+post_ex2_Model.3 <-
+  ex2_Model.3 %>% 
+  spread_draws(I) %>% #extract draws from the fitted model
+  mutate(model = 'Model.3') #add a new column to specify that the model
+
+#Combine draws
+plot.post <- rbind(post_ex2_Model.1, post_ex2_Model.2, post_ex2_Model.3)
+
+# Plot
+plot.post  %>%
+  ggplot(aes(y = model, x = I)) +
+  geom_vline(xintercept = b_socint.glare, alpha = 0.8, linetype = 'dashed', colour = 'blue') + 
+  stat_slabinterval(point_interval = 'mean_hdi',
+                    .width = c(.95)) +
+  scale_x_continuous('Estimate', 
+                     breaks = seq(from = -5, to = 5, by = 0.25),
+                     limits = c(-3, -1.5)) +
+  theme(panel.grid = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_rect(colour = 'black', fill = NA),
+        axis.title.y = element_blank())
+```
+
+```{r}
+#| echo: false
+
+plot.post_mean.hdi <- 
+  plot.post %>% 
+  group_by(model) %>%
+  mean_hdi(.width = .95) #calculate 95 highest density intervals (HDI)
+```
+
+@fig-DAG.ex2-estimate-Bayesian shows the estimates (mean and 95 HDI) of the coefficient for social interaction for `Model.1`, `Model.2` and `Model.3`.
+
+For `Model.1` we found a negative coefficient between social interaction $(\text{I})$ and glare perception $(\text{G})$ (mean = `r sprintf(plot.post_mean.hdi[1, 'I'], fmt = '%#.3f')`, 95% HDI \[`r sprintf(plot.post_mean.hdi[1, '.lower'], fmt = '%#.3f')`, `r sprintf(plot.post_mean.hdi[1, '.upper'], fmt = '%#.3f')`\]). The estimated causal effect is unbiased, leading to the correct conclusion that an increase of unit in social interaction causes a decrease in glare perception by `r sprintf(plot.post_mean.hdi[1, 'I'], fmt = '%#.3f')` units, on average.
+
+For `Model.2` we found a negative coefficient between social interaction $(\text{I})$ and glare perception $(\text{G})$ (mean = `r sprintf(plot.post_mean.hdi[2, 'I'], fmt = '%#.3f')`, 95% HDI \[`r sprintf(plot.post_mean.hdi[2, '.lower'], fmt = '%#.3f')`, `r sprintf(plot.post_mean.hdi[2, '.upper'], fmt = '%#.3f')`\]). However, the estimated causal effect is biased, leading to the wrong conclusion that an increase of unit in social interaction causes a decrease in glare perception by `r sprintf(plot.post_mean.hdi[2, 'I'], fmt = '%#.3f')` units, on average.
+
+For `Model.3` we found a negative coefficient between social interaction $(\text{I})$ and glare perception $(\text{G})$ (mean = `r sprintf(plot.post_mean.hdi[3, 'I'], fmt = '%#.3f')`, 95% HDI \[`r sprintf(plot.post_mean.hdi[3, '.lower'], fmt = '%#.3f')`, `r sprintf(plot.post_mean.hdi[3, '.upper'], fmt = '%#.3f')`\]). However, now the estimated causal effect is unbiased, leading to the correct conclusion that an increase of unit in social interaction causes a decrease in glare perception by `r sprintf(plot.post_mean.hdi[3, 'I'], fmt = '%#.3f')` units, on average.
+
+Importantly, for both `Model.1`, `Model.2` and `Model.3`, the 95% HDI is the range of parameter values within which the most credible 95% of the posterior distribution falls. Unlike frequentist confidence interval, the Bayesian 95% HDI has a direct probabilistic meaning: every point inside the HDI has a higher probability density than any point outside the interval. Therefore, given the model, the prior and the data, we can say that there is a 95% probability that the data-generating parameter (i.e., `b_socint.glare = -2`) lies within the HDI. However, since `Model.2` leads to a biased estimate, we will reach the wrong conclusion by stating that there is a 95% probability that the data-generating parameter lies within the \[`r sprintf(plot.post_mean.hdi[2, '.lower'], fmt = '%#.3f')`, `r sprintf(plot.post_mean.hdi[2, '.upper'], fmt = '%#.3f')`\] interval. This probability is 0%.
+
+As expected, since there is no backdoor path open, regressing glare perception $(\text{G})$ on social interaction $(\text{I})$ (i.e., using `Model.1`) leads to the correct estimate of the total average causal effect. However, when CO~2~ is included as a predictor (i.e., using `Model.2`) the estimates are biased. Adjusting for CO~2~ alone opens the backdoor path $\text{I} \leftarrow \text{O} \rightarrow \text{C} \leftarrow \text{W} \rightarrow \text{G}$ that was previously closed. As a result, association can flow from $\text{I}$ to $\text{G}$ through $\text{O}$, $\text{C}$ and $\text{W}$. This happens because CO~2~ is a collider. However, when we also include window state $(\text{W})$ as a predictor (i.e., using `Model.3`) the backdoor path is closed, leading to the correct estimate of the total total average causal effect of social interaction $(\text{I})$ on glare perception $(\text{G})$.
+
+This bias is known as M-bias. Generally, adjusting for an inappropriate variable (a collier on a non-causal path) opens an M-shaped backdoor path and creates spurious association.
+
+## Session info {.unnumbered}
+
+Version information about R, the OS and attached or loaded packages.
+
+```{r}
+
+sessionInfo()
+
+```

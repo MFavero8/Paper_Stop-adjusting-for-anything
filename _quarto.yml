@@ -1,0 +1,80 @@
+project:
+  type: book
+  output-dir: docs
+
+book:
+  title: 'Supplementary material'
+  subtitle: 'Stop adjusting for anything : How the backdoor and adjustment criteria empower causal human-centric research'
+  author: 
+  - name: Jian Pan
+    orcid: 0009-0007-2605-0515
+  - name: Matteo Favero
+    orcid: 0000-0002-3853-2585
+    email: matteo.favero08@gmail.com
+  - name: Andrew Sonta
+    orcid: 0000-0001-9021-0842
+  - name: Ruiji Sun
+    orcid: 0000-0001-7234-3078
+  - name: Julia Damrath
+  - name: Marcel Schweiker
+    orcid: 0000-0003-3906-4688
+  date: last-modified
+  date-format: 'DD MMMM, YYYY'
+  chapters:
+    - index.qmd
+    - intro.qmd
+    
+    - part: "Simpson's paradox"
+      chapters:
+        - ex1_simulation.qmd
+        
+    - part: 'M-bias'
+      chapters:
+        - ex2_simulation.qmd
+        
+    - part: 'Post-treatment bias'
+      chapters:
+        - ex3_simulation.qmd
+        
+    - part: 'Case-control bias'
+      chapters:  
+        - ex4_simulation.qmd
+        
+    - part: 'Selection bias'
+      chapters:  
+        - ex5_simulation.qmd
+
+  appendices:
+    - references.qmd
+
+
+  page-footer:
+    left: This notebook was built with <a href='https://quarto.org/'>Quarto</a>.
+    right: © 2024. <a href='https://creativecommons.org/licenses/by/4.0/'>CC BY 4.0</a>
+
+nocite: |
+  [@R2025], [@Rstudio2025], [@ggdag2025], [@dagitty2025], [@rstanarm2025], [@tidybayes2025], [@ggdist2025a], [@ggdist2025b], [@tidyverse2025], [@gt2025], [@rstan2025], [@bayesboot2025], [@car2025]
+  
+bibliography: references.bib
+csl: elsevier-harvard.csl
+
+crossref:
+  fig-title: Fig.     # (default is "Figure")
+  fig-prefix: Fig.     
+  eq-prefix: Eq.     
+#  tbl-title: Tbl     # (default is "Table")
+  title-delim: '.'   # (default is ":")
+
+format:
+  html:
+    toc: true
+    number-sections: true
+    number-depth: 3
+    theme:
+      - cosmo
+    embed-resources: false
+    code-link: true
+    code-overflow: wrap
+
+
+editor: visual

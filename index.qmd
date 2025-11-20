@@ -1,0 +1,13 @@
+# Preface {.unnumbered}
+
+This notebook is specifically designed to serve as a detailed guide for the examples with synthetic data that have been discussed in the paper titled "Stop adjusting for anything: How the backdoor and adjustment criteria empower causal human-centric research". The primary objective of this notebook is to provide a comprehensive and practical explanation of the entire modelling process, along with detailed insights into the various methodologies and techniques employed in the process.
+
+Our aim is to provide a valuable resource for researchers and practitioners at all levels of proficiency ---both experienced and inexperienced. By providing a clear and practical explanation of the modelling methods and techniques used in the examples, we hope to enable researchers and practitioners to gain a deeper understanding of the subject.
+
+However, it is important to note that this notebook is not intended and should not be used as a set of recipes to solve problems. Instead, it should be viewed as a map to guide researchers through the modelling process.
+
+# Contributors and license
+
+This document was written by Matteo Favero and Jian Pan with feedback from Andrew Sonta, Ruiji Sun, and Marcel Schweiker.
+
+This work is openly licensed via a Creative Commons Attribution 4.0 International ([CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)).

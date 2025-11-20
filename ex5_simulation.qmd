@@ -1,0 +1,1152 @@
+# Simulation example {#sec-ex5}
+
+```{r}
+#| label: load-packages
+#| message: false
+
+#Load packages
+library(ggdag)
+library(dagitty)
+library(rstanarm)
+library(tidybayes)
+library(ggdist)
+library(tidyverse)
+library(gt)
+library(rstan)
+library(bayesboot)
+
+```
+
+## Data-generating process
+
+The data-generating process is described via the directed acyclic graph (DAG) in @fig-DAG.ex5-1. In this DAG, acoustic sensation $(\text{C})$ is influenced directly by noise $(\text{N})$, biological sex $(\text{S})$ and age $(\text{A})$. Paticipation $(\text{P})$ in the survey response is affected by biological sex $(\text{S})$ and age $(\text{A})$.
+
+```{r}
+#| label: fig-DAG.ex5-1
+#| fig-cap: 'Graphical representation via DAG of the data-generating process.'
+#| fig-cap-location: bottom
+#| fig-align: center
+#| fig-width: 4.5
+#| fig-height: 2.7
+#| out-width: '60%'
+#| fig-dpi: 900
+#| warning: false
+#| code-fold: true
+
+dag_coords.ex5 <-
+  data.frame(name = c('S', 'N', 'P', 'C', 'A'),
+             x = c(1, 1, 3.5, 3.5, 6),
+             y = c(2, 3, 1, 3, 2))
+
+DAG.ex5 <-
+  dagify(C ~ N + S + A,
+         P ~ S + A,
+         coords = dag_coords.ex5)
+
+ggplot(data = DAG.ex5, aes(x = x, y = y, xend = xend, yend = yend)) +
+  geom_point(x = 3.5, y = 1, shape = 0, size = 12, stroke = 0.9, color = 'black') +
+  geom_dag_text(colour = 'black', size = 10, parse = TRUE,
+                family = c('mono'),
+                label = c(expression(bold(A)), expression(bold(C)), expression(bold(N)), expression(bold(P)), expression(bold(S)))) +
+  geom_dag_edges(arrow_directed = grid::arrow(length = grid::unit(10, 'pt'), type = 'open'),
+                 edge_colour = 'black',
+                 family = c('mono'), 
+                 fontface = c('bold')) + 
+  annotate('text', x = 3.5, y = 0.68, label = 'participation', 
+           size = 4, hjust = 0.5, colour = 'grey50') +
+  annotate('text', x = 3.5, y = 3.3, label = 'acoustic sensation', 
+           size = 4, hjust = 0.5, colour = 'grey50') +
+  annotate('text', x = 1, y = 3.3, label = 'noise', 
+           size = 4, hjust = 0.5, colour = 'grey50') +
+  annotate('text', x = 6, y = 1.7, label = 'age', 
+           size = 4, hjust = 0.5, colour = 'grey50') +
+  annotate('text', x = 1, y = 1.7, label = 'sex', 
+           size = 4, hjust = 0.5, colour = 'grey50') +
+  coord_cartesian(xlim = c(0.5, 6.5), ylim = c(0.8, 3.2))  +
+  theme_dag()
+
+```
+
+The DAG in @fig-DAG.ex5-1 can be written as:
+
+-   $C \sim f_{C}(N, S, A)$, read as 'acoustic sensation $(\text{C})$ is some function of noise $(\text{N})$, biological sex $(\text{S})$ and age $(\text{A})$'.
+-   $P \sim f_{P}(A, A)$, read as 'participation $(\text{P})$ is some function of biological sex $(\text{S})$ and age $(\text{A})$'.
+
+## Synthetic data set
+
+To generate synthetic data, we defined the custom function `data.sim_ex5()`. This function takes as inputs the sample size `n` and generates synthetic data according to the DAG in @fig-DAG.ex5-1.
+
+```{r}
+data.sim_ex5 <- function(n) {
+  b_age.conf = 0.3 #direct causal effect of A on C 1 or 0.2
+  b_sex.conf = c(0, -1) #direct causal effect of S on C
+  b_noise.conf = 0.7 #direct causal effect of N on C
+  #Simulate age
+  A <- sample(18:59, size = n, replace = TRUE)
+  #Simulate biological sex
+  S <- factor(sample(c('male', 'female'), size = n, replace = TRUE)) 
+  #Simulate noise
+  N <- rnorm(n = n, mean = 45, sd = 4)
+  #Simulate acoustic sensation
+  C <- rnorm(n = n, mean = ifelse(S == 'male', 10 + b_sex.conf[1] + b_noise.conf * N + b_age.conf * A, 10 + b_sex.conf[2] + b_noise.conf * N + b_age.conf * A), sd = 3)
+  #Simulate participation
+  P <- rbinom(n = n, size = 1, prob = plogis(ifelse(S == 'male', +23 -15.6 - 0.25 * A, +23 -13.5 - 0.25 * A)))
+  #Return tibble with simulated values
+  return(tibble(A, S, N, C, P))
+  }
+```
+
+From this data generation mechanism, we simulated the target population, which consists of one million observations.
+
+```{r}
+
+set.seed(2025) #set random number for reproducibility
+#Simulate the population
+ex5_population <- data.sim_ex5(n = 1e6)
+#Set biological sex reference category to 'male'
+ex5_population$S <- relevel(ex5_population$S, ref = 'male')
+#View the data frame
+ex5_population
+```
+
+From this population, we obtained two data sets of five thousand observations each: one using simple random sampling and the other using non-random sampling.
+
+The first sample (i.e., `ex5_sample.random`) will use simple random sampling, whereas the second one (i.e., `ex5_sample.bias`) will use non-random sampling. In this case, we will first select only the observations with based on `P == 1` and subsequently sampling randomly from them. As a result, the sample obtained is biased.
+
+```{r}
+n_sims <- 1e3 #number of data sets to simulate
+
+#Set random number for reproducibility
+set.seed(2025)  
+#Generate a vector of random numbers for reproducibility
+ex5_random.seed <- sample(1:1e5, size = n_sims, replace = FALSE)
+```
+
+```{r}
+set.seed(ex5_random.seed[1])
+#Sample one data set of 5,000 observations
+ex5_sample.random <- 
+  ex5_population %>% 
+  slice_sample(n = 5e3) #take a simple random sample of size 5,000
+
+set.seed(ex5_random.seed[1])
+#Sample one data set of 5,000 observations
+ex5_sample.bias <- 
+  ex5_population %>% 
+  filter(P == 1) %>% slice_sample(n = 5e3) #take a biased sample of size 5,000 
+
+```
+
+A summary of descriptive statistics for all variables in the data sets is given below.
+
+```{r}
+summary(ex5_sample.random)
+summary(ex5_sample.bias)
+```
+
+## Data analysis
+
+In this example, the target of our analysis is the total average causal effect, ACE (also known as total average treatment effect, ATE) of biological sex $(\text{S})$ on acoustic sensation $(\text{C})$, which stands for the expected increase of $\text{C}$ in response to a change from male to female in $\text{S}$ due to an intervention. The causal effect of interest is visualized in @fig-DAG.ex5-2.
+
+```{r}
+#| label: fig-DAG.ex5-2
+#| fig-cap: 'Graphical representation via DAG of the data-generating process. The green line indicates the causal question of interest, and the number on the path indicates the total average causal effect.'
+#| fig-cap-location: bottom
+#| fig-align: center
+#| fig-width: 4.5
+#| fig-height: 2.7
+#| out-width: '60%'
+#| fig-dpi: 900
+#| warning: false
+#| code-fold: true
+
+ggplot(data = DAG.ex5, aes(x = x, y = y, xend = xend, yend = yend)) +
+  #visualize causal effect path
+  geom_segment(x = 1, xend = 3.5, y = 2, yend = 3,
+               linewidth = 14, lineend = 'round', colour = '#009E73', alpha = 0.05) +
+  geom_point(x = 3.5, y = 1, shape = 0, size = 12, stroke = 0.9, color = 'black') +
+  geom_dag_text(colour = 'black', size = 10, parse = TRUE,
+                family = c('mono'),
+                label = c(expression(bold(A)), expression(bold(C)), expression(bold(N)), expression(bold(P)), expression(bold(S)))) +
+  geom_dag_edges(arrow_directed = grid::arrow(length = grid::unit(10, 'pt'), type = 'open'),
+                 edge_colour = 'black',
+                 family = c('mono'), 
+                 fontface = c('bold')) + 
+  annotate('text', x = 3.5, y = 0.68, label = 'participation', 
+           size = 4, hjust = 0.5, colour = 'grey50') +
+  annotate('text', x = 3.5, y = 3.3, label = 'acoustic sensation', 
+           size = 4, hjust = 0.5, colour = 'grey50') +
+  annotate('text', x = 1, y = 3.3, label = 'noise', 
+           size = 4, hjust = 0.5, colour = 'grey50') +
+  annotate('text', x = 6, y = 1.7, label = 'age', 
+           size = 4, hjust = 0.5, colour = 'grey50') +
+  annotate('text', x = 1, y = 1.7, label = 'sex', 
+           size = 4, hjust = 0.5, colour = 'grey50') +
+  #causal effect number
+  annotate('text', x = 1.9, y = 2.6, label = '-1', 
+           size = 4.5, hjust = 0.5, colour = 'black', parse = TRUE) +
+  coord_cartesian(xlim = c(0.5, 6.5), ylim = c(0.8, 3.2))  +
+  theme_dag()
+
+```
+
+### Identification
+
+The first step to answer the causal question of interest is identification. Identification answers a ‘theoretical’ question by determining whether a causal effect can, in principle, be estimated from observed data. The backdoor criterion and its generalization, the adjustment criterion, allow us to understand whether our causal effect of interest can be identified and, if so, which variables we should (or should not) statistically adjust for (i.e., the adjustment set) to estimate the causal effect from the data.
+
+Given its simplicity, we will first apply the backdoor criterion to identify valid adjustment sets to estimate the causal effect of interest. If the backdoor criterion is not applicable, we will apply its generalization, the adjustment criterion.
+
+#### Backdoor criterion
+
+Applying the backdoor criterion, we found no backdoor paths since no arrows enter into biological sex. However, we noticed that participation $(\text{P})$ is a descendant of biological sex $(\text{S})$ and is selected. Although selection and adjustment are conceptually distinct, both are forms of conditioning. Since the sample is implicitly conditioned on $\text{P}$, a descendant of $\text{S}$, the conditions required to apply the backdoor criterion are not met. We then apply the adjustment criterion.
+
+#### Adjustment criterion
+
+With the adjustment criterion, conditioning on $\text{P}$ is allowed because $\text{P}$ is not on the causal path from $\text{S}$ to $\text{C}$, but we also need to check that all the non-causal paths from $\text{S}$ to $\text{C}$ are closed. Since participation $(\text{P})$ is a collider (i.e., common effect) of biological sex $(\text{S})$ and age $(\text{A})$, as females and older individuals are more likely to participate in the experiment, the non-causal path $\text{S} \rightarrow \text{P} \leftarrow \text{A} \rightarrow \text{C}$ is open. As a result, there is a spurious association between sex $(\text{S})$ and acoustic sensation $(\text{C})$.
+
+Given the DAG in @fig-DAG.ex5-1, we can use the `adjustmentSets()` function to identify the adjustment set algorithmically. Unfortunately, `adjustmentSets()` does not allow to find the adjustment set(s) when there is selection bias (i.e., a variable is conditioned on in the DAG). Nevertheless, for this example there is a work around. We can still use `adjustmentSets()` to get the adjustment set(s) but then only select the one(s) that includes $\text{P}$.
+
+```{r}
+#| code-fold: false
+
+adjustmentSets(DAG.ex5,
+               exposure = 'S', #biological sex
+               outcome = 'C', #acoustic sensation
+               type = 'all', 
+               effect = 'total', 
+               max.results = Inf)
+```
+
+The resulting adjustment sets that include participation $(\text{P})$ are only two: adjust for age $(\text{A})$ or adjust for age $(\text{A})$ and noise $(\text{N})$; failing to do so will lead to bias.
+
+### Estimation
+
+Following the identification step is the estimation step. This step addresses a statistical question by determining how the causal effect identified in the previous step can be estimated. To perform this step, we used a parametric (model-based) estimator, specifically, linear regression. This was possible because we designed the illustrative examples to be simple and with a linear relationship between the variables. This way, we limited the complexity of the examples themselves and shifted the focus to the application of the backdoor criterion to define 'correct' adjustment sets.
+
+For transparency and understanding, all (implicit) assumptions used for this illustrative example are (explicitly) provided in @tbl-summary.ex5.
+
+```{r}
+#| label: tbl-summary.ex5
+#| tbl-cap: Summary description of the simulation example
+#| echo: false
+
+is_empty <- function(x){
+    return(ifelse(x == '', TRUE, FALSE))
+  }
+
+data.frame(colA = c('Research question', rep('Assumptions', 5), rep('Variables', 4)),
+           colB = c('Total average causal effect (ACE) of biological sex (S) on acoustic sensation (C).',
+                    'Limited random variability: large sample size.',
+                    'Independence of observations: each observation represents independent bits of information.',
+                    'No confounding: the DAG includes all shared causes among the variables.',
+                    'No model error: perfect functional form specification.',
+                    'No measurement error: all variables are measured perfectly.', 
+                    'Noise (N): continuous variable [unit: dB(A)]',
+                    "Biological sex (S): categorical variable ['male'; 'female']",
+                    'Age (A): discrete (count) variable [unit: years]',
+                    "Acoustic sensation (C): continous variable [unit: -]")) %>%
+  group_by(colA) %>% 
+  mutate(colA = ifelse(row_number() == 1, colA, '')) %>% 
+  ungroup() %>% 
+  gt() %>%
+  tab_options(column_labels.hidden = TRUE) %>%
+  tab_style(style = list(cell_borders(sides = c('top', 'bottom'), weight = px(0))),
+            locations = list(cells_body(columns = colA, rows = is_empty(colA)))) %>%
+  tab_style(style = list(cell_text(weight = 'bold', v_align = 'top')),
+            locations = list(cells_body(columns = colA))) %>%
+  tab_style(style = list(cell_text(v_align = 'top')),
+            locations = list(cells_body(columns = colB))) %>%  
+  tab_style(style = list(cell_fill(color = 'white')),
+            locations = list(cells_body(columns = colA))) %>%
+  cols_width(colA ~ pct(22)) 
+
+```
+
+To carry out the estimation step, we utilised linear regression within both the frequentist and Bayesian frameworks. Specifically, we will run three regression models:
+
+-   `Model.1` will include only biological sex $(\text{S})$ as predictor;
+-   `Model.2` will include biological sex $(\text{S})$ and age $(\text{A})$ as predictors.
+-   `Model.3` will include biological sex $(\text{S})$ and noise $(\text{N})$ as predictors.
+
+The results of the fitted statistical models (i.e., `Model.1`, `Model.2` and `Model.3`) are presented here.
+
+#### Frequentist framework
+
+```{r}
+
+#Fit the linear regression model with S and C (Model 1)
+ex5_Model.1 <-
+  lm(formula = C ~ S,
+     data = ex5_sample.bias)
+#View of the model summary
+summary(ex5_Model.1)
+```
+
+```{r}
+
+#Fit the linear regression model with S, A and C (Model 2)
+ex5_Model.2 <-
+  lm(formula = C ~ S + A,
+     data = ex5_sample.bias)
+#View of the model summary
+summary(ex5_Model.2)
+```
+
+```{r}
+
+#Fit the linear regression model with S, N and C (Model 3)
+ex5_Model.3 <-
+  lm(formula = C ~ S + N,
+     data = ex5_sample.bias)
+#View of the model summary
+summary(ex5_Model.3)
+```
+
+The estimated coefficients for the three models are then plotted in @fig-DAG.ex5-estimate.
+
+```{r}
+#| label: fig-DAG.ex5-estimate
+#| fig-cap: 'Estimates of the biological sex coefficient for the three models. The white dots represent the point estimate, and the black lines represent the 95% confidence intervals. The blue dashed line represents the parameter used to generate the data.'
+#| fig-cap-location: bottom
+#| fig-align: center
+#| fig-width: 6
+#| fig-height: 1.5
+#| fig-dpi: 900
+#| warning: false
+#| code-fold: true
+
+b_sex.conf = c(0, -1)
+
+data.frame(model = c('Model.1', 'Model.2', 'Model.3'),
+           estimate = c(coef(ex5_Model.1)['Sfemale'], 
+                        coef(ex5_Model.2)['Sfemale'],
+                        coef(ex5_Model.3)['Sfemale']),
+           lower.95.CI = c(confint(ex5_Model.1, level = 0.95, type = 'Wald')['Sfemale', 1], 
+                           confint(ex5_Model.2, level = 0.95, type = 'Wald')['Sfemale', 1],
+                           confint(ex5_Model.3, level = 0.95, type = 'Wald')['Sfemale', 1]),
+           upper.95.CI = c(confint(ex5_Model.1, level = 0.95, type = 'Wald')['Sfemale', 2], 
+                           confint(ex5_Model.2, level = 0.95, type = 'Wald')['Sfemale', 2],
+                           confint(ex5_Model.3, level = 0.95, type = 'Wald')['Sfemale', 2])) %>%
+  
+ggplot(aes(x = estimate, y = model, xmin = lower.95.CI, xmax = upper.95.CI)) + 
+  geom_vline(xintercept = b_sex.conf[2], alpha = 0.8, linetype = 'dashed', colour = 'blue') + 
+  geom_linerange() +
+  geom_point(shape = 21, size = 2, fill = 'white', stroke = 1) +
+  scale_x_continuous('Estimate', 
+                     breaks = seq(from = -10, to = 10, by = 0.25),
+                     limits = c(-1.55, 0.55)
+                     ) +
+  theme(panel.grid = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_rect(colour = 'black', fill = NA),
+        axis.title.y = element_blank())
+
+```
+
+@fig-DAG.ex5-estimate shows the estimates (point estimate and 95 confidence interval) of the coefficient for biological sex for `Model.1`, `Model.2`and `Model.3`.
+
+For `Model.1` we found a negative coefficient between biological sex $(\text{S})$ and acoustic sensation $(\text{C})$ equal to `r sprintf(coef(ex5_Model.1)['Sfemale'], fmt = '%#.3f')` with 95% CI \[`r sprintf(confint(ex5_Model.1, level = 0.95, type = 'Wald')['Sfemale', ], fmt = '%#.3f')`\]. Since the 95% CI includes zero, the regression coefficient is not statistically significantly different from zero at the 0.05 level (p-value = `r sprintf('%.3g', summary(ex5_Model.1)$coef['Sfemale', 4])`). The observed data are consistent with zero, but also consistent with other non-zero values (i.e., all numbers within the 95% confidence interval). Additionally, since the 95% CI does not include the data-generating parameter for sex (i.e., `b_sex.conf = -1`), we can deduce that the estimated coefficient for sex is statistically significantly different from -1 at the 0.05 level. We can test this more formally by using the `linearHypothesis()` function. Specifically,
+
+```{r}
+#Test for Sfemale = -1
+car::linearHypothesis(ex5_Model.1, 'Sfemale = -1') # car:: access the function from the car package without loading it in the environment 
+```
+
+The resulting p-value is `r sprintf('%.3g', car::linearHypothesis(ex5_Model.1, 'Sfemale = -1')[2,'Pr(>F)'])`, which indicates that we can reject the null hypothesis (i.e., `Sfemale = -1`) at the 0.05 level. This result suggests that the regression coefficient for sex (i.e., `r sprintf(coef(ex5_Model.1)['Sfemale'], fmt = '%#.3f')`) is statistically significantly different from -1. Since the estimated causal effect from `Model.1` is biased, we would erroneously conclude that changing biological sex from `male` to `female` causes a decrease in acoustic sensation by `r sprintf(coef(ex5_Model.1)['Sfemale'], fmt = '%#.3f')` units (95% CI \[`r sprintf(confint(ex5_Model.1, level = 0.95, type = 'Wald')['Sfemale', ], fmt = '%#.3f')`\]).
+
+For `Model.2` we found a negative coefficient between biological sex $(\text{S})$ and acoustic sensation $(\text{C})$ equal to `r sprintf(coef(ex5_Model.2)['Sfemale'], fmt = '%#.3f')` with 95% CI \[`r sprintf(confint(ex5_Model.2, level = 0.95, type = 'Wald')['Sfemale', ], fmt = '%#.3f')`\]. Since the 95% CI excludes zero, the regression coefficient is statistically significantly different from zero at the 0.05 level (p-value = `r sprintf('%.3g', summary(ex5_Model.2)$coef['Sfemale', 4])`). Additionally, since the 95% CI includes the data-generating parameter for sex (i.e., `b_sex.conf = -1`), we can deduce that the estimated coefficient for sex is not statistically significantly different from -1 at the 0.05 level (although this will be the case for all numbers within the 95% confidence interval). We can test this more formally by using the `linearHypothesis()` function. Specifically,
+
+```{r}
+#Test for Sfemale = -1
+car::linearHypothesis(ex5_Model.2, 'Sfemale = -1') # car:: access the function from the car package without loading it in the environment 
+```
+
+The resulting p-value is `r sprintf('%.3g', car::linearHypothesis(ex5_Model.2, 'Sfemale = -1')[2,'Pr(>F)'])`, which indicates that we fail to reject the null hypothesis (i.e., `Sfemale = -1`) at the 0.05 level. This result suggests that the regression coefficient for sex (i.e., `r sprintf(coef(ex5_Model.2)['Sfemale'], fmt = '%#.3f')`) is not statistically significantly different from -1. Since the estimated causal effect from `Model.2` is unbiased, we would correctly conclude that changing biological sex from `male` to `female` causes a decrease in acoustic sensation by `r sprintf(coef(ex5_Model.2)['Sfemale'], fmt = '%#.3f')` units (95% CI \[`r sprintf(confint(ex5_Model.2, level = 0.95, type = 'Wald')['Sfemale', ], fmt = '%#.3f')`\]).
+
+For `Model.3` we found a negative coefficient between biological sex $(\text{S})$ and acoustic sensation $(\text{C})$ equal to `r sprintf(coef(ex5_Model.3)['Sfemale'], fmt = '%#.3f')` with 95% CI \[`r sprintf(confint(ex5_Model.3, level = 0.95, type = 'Wald')['Sfemale', ], fmt = '%#.3f')`\]. Since the 95% CI includes zero, the regression coefficient is not statistically significantly different from zero at the 0.05 level (p-value = `r sprintf('%.3g', summary(ex5_Model.3)$coef['Sfemale', 4])`). The observed data are consistent with zero, but also consistent with other non-zero values (i.e., all numbers within the 95% confidence interval). Additionally, since the 95% CI does not include the data-generating parameter for sex (i.e., `b_sex.conf = -1`), we can deduce that the estimated coefficient for sex is statistically significantly different from -1 at the 0.05 level. We can test this more formally by using the `linearHypothesis()` function. Specifically,
+
+```{r}
+#Test for Sfemale = -1
+car::linearHypothesis(ex5_Model.3, 'Sfemale = -1') # car:: access the function from the car package without loading it in the environment 
+```
+
+The resulting p-value is `r sprintf('%.3g', car::linearHypothesis(ex5_Model.3, 'Sfemale = -1')[2,'Pr(>F)'])`, which indicates that we can reject the null hypothesis (i.e., `Sfemale = -1`) at the 0.05 level. This result suggests that the regression coefficient for sex (i.e., `r sprintf(coef(ex5_Model.3)['Sfemale'], fmt = '%#.3f')`) is statistically significantly different from -1. Since the estimated causal effect from `Model.1` is biased, we would erroneously conclude that changing biological sex from `male` to `female` causes a decrease in acoustic sensation by `r sprintf(coef(ex5_Model.3)['Sfemale'], fmt = '%#.3f')` units (95% CI \[`r sprintf(confint(ex5_Model.3, level = 0.95, type = 'Wald')['Sfemale', ], fmt = '%#.3f')`\]).
+
+Importantly, for `Model.1`, `Model.2` and `Model.3`, the 95% confidence interval means that if we were to repeat the sampling process and calculate the interval many times, 95% of those calculated intervals would contain the true population parameter. To highlight this, we can repeat the analysis by fitting the two models to one thousand data sets randomly selected from our population.
+
+The for-loop shown in the code below performs the following operations. First, sample (using simple random sample) a data set of 5,000 observations from the target population. Subsequently, perform linear regression using `Model.1`, `Model.2` and `Model.3` and store the estimated coefficients for `sex`, its standard error and 95% confidence interval in the data frame `coefs_ex5`. This operation is repeated a thousand times, resulting in the data frame `coefs_ex5` containing the estimates (point estimate, standard error and confidence interval) of a thousand random samples of size 5,000 using both `Model.1`, `Model.2` and `Model.3`.
+
+```{r}
+n_model <- c('mod.1', 'mod.2', 'mod.3')     
+
+n_row <- n_sims*length(n_model)
+
+#Create an empty data frame
+empty.df <- data.frame(matrix(NA, nrow = n_row, ncol = 7))
+#Rename the data frame columns
+colnames(empty.df) <- c('sim.id', 'estimate', 'se', 'CI_2.5', 'CI_97.5',
+                        'model', 'coverage')
+
+#Sample a thousand data sets of 5,000 observations and perform linear regression 
+coefs_ex5 <- empty.df #assign the empty data frame
+k = 1
+for (i in 1:n_sims){
+  set.seed(ex5_random.seed[i]) #set unique seed for each simulation 
+#Sample data set from population   
+  sample.bias <- 
+    ex5_population %>% 
+    filter(P == 1) %>% 
+    slice_sample(n = 5e3) #take a simple random sample of size 5,000
+#Fit models
+  for (j in 1:length(n_model)){
+    if (n_model[j] == 'mod.1'){
+      fit <- lm(formula = C ~ S,
+                data = sample.bias)
+    } else if (n_model[j] == 'mod.2'){
+      fit <- lm(formula = C ~ S + A,
+                data = sample.bias)  
+    } else {
+      fit <- lm(formula = C ~ S + N,
+                data = sample.bias)
+    }  
+#Compile matrix  
+  coefs_ex5[k, 1] <- i #simulation ID
+  coefs_ex5[k, 2] <- coef(fit)['Sfemale'] #point estimate
+  coefs_ex5[k, 3] <- summary(fit)$coef['Sfemale','Std. Error'] #standard error
+  coefs_ex5[k, 4:5] <- confint(fit, level = 0.95, type = 'Wald')['Sfemale', ] #confidence interval (Wald)
+  coefs_ex5[k, 6] <- n_model[j] #sample size
+  k = k + 1
+  }
+}
+coefs_ex5 <- as_tibble(coefs_ex5)
+#View the data frame
+coefs_ex5
+
+```
+
+The `coverage` is defined by setting its value to `1` if the confidence interval overlaps the data-generating parameter for `sex` (i.e., `b_sex.conf = -1`) and `0` otherwise.
+
+```{r}
+
+#Calculate coverage
+coefs_ex5 <-
+  coefs_ex5 %>%
+  mutate(coverage = case_when(CI_2.5 > b_sex.conf[2] | CI_97.5 < b_sex.conf[2] ~ 0,
+                              CI_2.5 <= b_sex.conf[2] & CI_97.5 >= b_sex.conf[2] ~ 1,
+                              .default = NA))
+#View the data frame
+coefs_ex5
+```
+
+The results are then plotted in @fig-DAG.ex5-CI.
+
+```{r}
+#| label: fig-DAG.ex5-CI
+#| fig-cap: 'Estimates of the biological sex coefficient (only the first hundreds of the thousand simulations are shown). The white dots represent the point estimate, and the black lines represent the 95% confidence intervals. In red are highlighted the confidence intervals that do not overlap the parameter used to generate the data (dashed blue line).'
+#| fig-cap-location: bottom
+#| fig-align: center
+#| fig-width: 6
+#| fig-height: 4
+#| fig-dpi: 900
+#| warning: false
+#| code-fold: true
+
+model_names <- c('mod.1' = 'Model.1', 
+                 'mod.2' = 'Model.2',
+                 'mod.3' = 'Model.3')
+
+ggplot(data = subset(coefs_ex5, sim.id <= 2e2), aes(x = sim.id, y = estimate, ymin = CI_2.5, ymax = CI_97.5, colour = as.factor(coverage))) + 
+  geom_hline(yintercept = b_sex.conf[2], alpha = 0.8, linetype = 'dashed', colour = 'blue') + 
+  geom_linerange() +
+  geom_point(shape = 21, size = 1, fill = 'white', stroke = 0.5) +
+  scale_colour_manual('', 
+                      values = c('black', '#FF4040'),
+                      breaks = c('1','0')) +
+  scale_y_continuous('Estimate', 
+                     breaks = seq(from = -10, to = 10, by = 0.5),
+                     limits = c(-1.75, 1)) +
+  scale_x_continuous('Simulation ID') +
+  facet_wrap(model~., 
+             labeller = labeller(model = model_names),
+             nrow = 3,
+             scales = 'fixed') +
+  theme(legend.position = 'none', 
+        panel.grid = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_rect(colour = 'black', fill = NA),
+        axis.title.y = element_blank())
+```
+
+```{r}
+#| echo: false
+
+#Calculate average coverage 
+coverage <- coefs_ex5 %>%
+  select(model, estimate, coverage) %>%
+  group_by(model) %>%
+  summarise(mean.coverage = sprintf('%0.1f%%', mean(coverage)*100))
+```
+
+@fig-DAG.ex5-CI shows the first 200 estimates (point estimate and confidence interval) of the coefficient for biological sex for `Model.1`, `Model.2` and `Model.3`. If all the thousand simulations are considered, the frequency of the coverage of the calculated confidence intervals (i.e., how many times the confidence intervals overlap the data-generating parameter) is `r coverage[1, 'mean.coverage']`, `r coverage[2, 'mean.coverage']` and `r coverage[3, 'mean.coverage']` for `Model.1`, `Model.2` and `Model.3`, respectively. Since the estimates of the causal effect for `Model.1` and `Model.3` are biased, the calculated confidence intervals for these models do not have the expected coverage. In fact, confidence intervals only quantify the uncertainty due to random error (i.e., sample variability), not systematic error (i.e., bias). Instead, the estimates from `Model.2` are unbiased and the calculated 95% confidence intervals have the expected coverage (i.e., overlap the data-generating parameter 95% of the times).
+
+We can also visualize all the 1,000 the estimates of the coefficient for biological sex for `Model.1`, `Model.2` and `Model.3` (i.e., the white dots in @fig-DAG.ex5-CI).
+
+```{r}
+#| label: fig-DAG.ex5-mean-estimate
+#| fig-cap: 'Histogram of the 1,000 estimates of the biological sex coefficient for the three models. The blue dashed line represents the parameter used to generate the data.'
+#| fig-cap-location: bottom
+#| fig-align: center
+#| fig-width: 6
+#| fig-height: 3
+#| fig-dpi: 900
+#| warning: false
+#| code-fold: true
+
+ggplot(data = coefs_ex5, aes(x = estimate, y = ifelse(after_stat(count) > 0, after_stat(count), NA))) +
+  geom_histogram(binwidth = 0.05, fill = 'white', colour = 'grey50') +
+  geom_vline(xintercept = b_sex.conf[2], colour = 'blue', linetype = 'dashed') +
+  scale_x_continuous('Estimate', 
+                     breaks = seq(from = -10, to = 10, by = 0.25),
+                     limits = c(-1.55, 0.55)) +
+  facet_grid(model~., 
+             labeller = labeller(model = model_names),
+             scales = 'fixed') +
+  theme(axis.title.y = element_blank(), 
+        axis.text.y = element_blank(), 
+        axis.ticks.y = element_blank(),
+        panel.grid = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_rect(colour = 'black', fill = NA))
+
+```
+
+```{r}
+#| echo: false
+
+#Calculate average coverage 
+mean.estimate <- coefs_ex5 %>%
+  select(model, estimate) %>%
+  group_by(model) %>%
+  summarise(mean.estimate = mean(estimate),
+            sd.estimate = sd(estimate))
+```
+
+In @fig-DAG.ex5-mean-estimate, the estimated coefficients are visualized through a histogram. Here, we can see that the estimates for `Model.1` and `Model.3`are not clustered around the data-generating parameter (blue dashed line) having a mean estimate of `r sprintf(mean.estimate[1, 'mean.estimate'], fmt = '%#.3f')` (with `r sprintf(mean.estimate[1, 'sd.estimate'], fmt = '%#.3f')` standard deviation) and `r sprintf(mean.estimate[3, 'mean.estimate'], fmt = '%#.3f')` (with `r sprintf(mean.estimate[3, 'sd.estimate'], fmt = '%#.3f')` standard deviation), respectively. In contrast, the estimates for `Model.2` having a mean estimate of `r sprintf(mean.estimate[2, 'mean.estimate'], fmt = '%#.3f')` (with `r sprintf(mean.estimate[2, 'sd.estimate'], fmt = '%#.3f')` standard deviation) are centered around the data-generating parameter.
+
+As expected, the inclusion of age $(\text{A})$ in the regression model (i.e., using `Model.2`) leads to the correct estimate of the total average causal effect, while its exclusion (i.e., using `Model.1` and `Model.3`) leads to bias.
+
+The bias occurs because there is selection bias. Generally, selection bias takes place when the participants selected for a study, are not representative of the larger population intended to be analysed. In our example, participation is not random but influenced by variables that also affect the outcome, specifically, biological sex $(\text{S})$ and age $(\text{A})$. As a result, biological sex $(\text{S})$ and age $(\text{A})$ are associated in the biased sample, while they are not in the population (and consequently the random sample).
+
+To better explain this bias, we visualize the relationship between biological sex $(\text{S})$ and age $(\text{A})$ in the biased and random sample.
+
+```{r}
+#| label: fig-DAG.ex5-association
+#| fig-cap: 'Visualization of the relationship between biological sex and age in the biased and random sample.'
+#| fig-cap-location: bottom
+#| fig-align: center
+#| fig-dpi: 900
+#| fig-width: 6
+#| fig-height: 4
+#| warning: false
+#| code-fold: true
+#| message: false
+
+truth.data.sim_ex5 <- function(n) {
+  b_age.conf = 0.3 #direct causal effect of A on C 1 or 0.2
+  b_sex.conf = c(0, -1) #direct causal effect of S on C
+  b_noise.conf = 0.7 #direct causal effect of N on C
+
+  A <- rep(18:59, length.out = n)
+  S <- c(rep('male', times = 84/2), rep('female', times = 84/2))
+  N <- 45
+  #Simulate acoustic sensation
+  C <- ifelse(S == 'male', 10 + b_sex.conf[1] + b_noise.conf * N + b_age.conf * A, 10 + b_sex.conf[2] + b_noise.conf * N + b_age.conf * A)
+  #Return tibble with simulated values
+  return(tibble(A, S, N, C))
+  }
+
+truth <- truth.data.sim_ex5(84) %>%
+                    mutate(sample = 'population')
+
+
+ex5_plot <- rbind(ex5_sample.random %>%
+                    mutate(sample = 'random'),
+                  ex5_sample.bias %>%
+                    mutate(sample = 'biased'))
+
+
+#Plot
+mean_val <- 
+  ex5_plot %>% 
+  group_by(S, sample) %>% 
+  summarise(A = mean(A)) 
+
+line_val <- 
+  ex5_plot %>% 
+  group_by(S, sample) %>% 
+  summarise(A = mean(A)) %>%
+  pivot_wider(names_from = S, values_from = A)
+
+truth_line <-
+  truth %>% 
+  summarise(A = mean(A))
+
+ex5_plot %>%
+  ggplot(aes(x = as.numeric(S), y = A)) +
+  geom_jitter(aes(fill = S, colour = S), shape = 19, size = 2, alpha = 0.1, stroke = NA, width = 0.2) + 
+  geom_hline(data = truth_line, mapping = aes(yintercept = A , linetype = 'linea'), colour = 'black') +
+  geom_segment(data = line_val, aes(x = 1, y = male, xend = 2, yend = female), colour = 'black', linetype = 'solid', linewidth = 0.5) +
+  geom_point(data = mean_val, aes(fill = S, shape = '2'), colour = 'black', size = 3, stroke = 0.75) + #23
+  scale_colour_manual('',
+                      breaks = c('male', 'female', 'black'),
+                      values = c('#0072B2', '#D55E00', 'black')) +
+  scale_fill_manual('',
+                    breaks = c('male', 'female', 'black'),
+                    values = c('#0072B2', '#D55E00', NA)) +
+  scale_shape_manual('',
+                     breaks = c('2'),
+                     labels = c('mean age (sample)'),
+                     values = c(23)) +
+  scale_linetype_manual('',
+                        values = c('dashed'),
+                        breaks = c('linea'),
+                        labels = c('mean age (population)')) +
+  scale_x_continuous('Biological sex',
+                     breaks = c(1, 2),
+                     labels = c('male', 'female')) + 
+  scale_y_continuous('Age', 
+                     breaks = seq(from = 0, to = 100, by = 10)) +
+  guides(colour = guide_legend(override.aes = list(alpha = 1, fill = NA, size = 2), order = 1),
+         fill = 'none',
+         shape = guide_legend(override.aes = list(alpha = 1, size = 2), order = 2),
+         linetype = guide_legend(override.aes = list(alpha = 1, size = 2), order = 3)
+         ) +
+  facet_grid(.~sample) + 
+  theme(legend.position = 'bottom',
+        legend.direction = 'horizontal',
+        panel.grid = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_rect(colour = 'black', fill = NA))
+
+```
+
+@fig-DAG.ex5-association shows the relationship between biological sex $(\text{S})$ and age $(\text{A})$ in the biased and random sample. The horizontal dashed black line represent the average age in the population (i.e., `r sprintf(truth_line$A, fmt = '%#.2f')` years) for both males and females. In the random sample biological sex $(\text{S})$ and age $(\text{A})$ are not associated and the average age for males (i.e., `r sprintf(filter(mean_val, S == 'male' & sample == 'random')$A, fmt = '%#.2f')` years) and females (i.e., `r sprintf(filter(mean_val, S == 'female' & sample == 'random')$A, fmt = '%#.2f')` years) are similar to one another with a difference of `r sprintf(filter(mean_val, S == 'female' & sample == 'random')$A - filter(mean_val, S == 'male' & sample == 'random')$A, fmt = '%#.2f')` years. However, due to selection bias, the average age for males and females in the biased sample is clearly different from the population average. Additionally, biological sex $(\text{S})$ and age $(\text{A})$ are associated because females are more likely to be selected than males, and older people are less likely to be selected than younger people. As a result, females in the biased sample are, on average, older than males (average of `r sprintf(filter(mean_val, S == 'female' & sample == 'biased')$A, fmt = '%#.2f')` years for females, `r sprintf(filter(mean_val, S == 'male' & sample == 'biased')$A, fmt = '%#.2f')` years for males and a difference of `r sprintf(filter(mean_val, S == 'female' & sample == 'biased')$A - filter(mean_val, S == 'male' & sample == 'biased')$A, fmt = '%#.2f')` years).
+
+We can test for a difference between the average age of males and females more formally using bootstrapping. We will do so by using the custom functions `my_bootstrap()` and `summary_bootstrap()` (see code below).
+
+```{r}
+#| code-fold: true
+
+#Perform bootstrapping
+my_bootstrap <- 
+  function(data, variable, group){
+    samples <- tapply(X = data[[variable]], INDEX = data[[group]], FUN = function(x) sample(x, length(x), TRUE))
+    sapply(samples, mean)
+    }
+
+#Summarize the results from the bootstrapping
+summary_bootstrap <-
+  function(bootstrap){
+    data.frame(t(bootstrap)) %>% 
+      mutate(diff_f.m = female - male) %>%
+      mean_qi(.width = 0.95) %>%
+      rownames_to_column() %>%
+      select(-c(.width, .point, .interval)) %>%
+      pivot_longer(cols = !rowname, 
+                   names_to = 'variable',
+                   values_to = 'value') %>%
+      select(-rowname) %>%
+      mutate(type = case_when(grepl('.lower', variable) ~ 'CI.lower',
+                              grepl('.upper', variable) ~ 'CI.upper',
+                              .default = 'estimate'),
+             variable = case_when(grepl('female', variable) ~ 'female',
+                                  grepl('male', variable) ~ 'male',
+                                  grepl('diff_f.m', variable) ~ 'diff_f.m',
+                                  .default = NA)) %>%
+      pivot_wider(names_from = 'type',
+                  values_from = 'value')
+    }
+
+```
+
+First, we define the number of times to run the `my_bootstrap()` function. We fixed the number of bootstrap samples equal to 10,000 (i.e., `n_bootstrap = 1e4`). Subsequently, we run the `my_bootstrap()` function using as input both the random and biased sample.
+
+```{r}
+#Number of bootstrap samples
+n_bootstrap = 1e4
+set.seed(2025) #for reproducibility
+#Bootstrap for random sample
+bootstrap_sample.random <- 
+  replicate(n_bootstrap, my_bootstrap(data = ex5_sample.random, 
+                                      variable = 'A', 
+                                      group = 'S'))
+set.seed(2025) #for reproducibility
+#Bootstrap for biased sample
+bootstrap_sample.bias <- 
+  replicate(n_bootstrap, my_bootstrap(data = ex5_sample.bias, 
+                                      variable = 'A', 
+                                      group = 'S'))
+
+```
+
+The results from the bootstrapping are the summarized using the `summary_bootstrap()` function.
+
+```{r}
+#summarize bootstrap for random sample
+summary_sample.random <-
+  summary_bootstrap(bootstrap_sample.random)
+#View summary
+summary_sample.random
+#summarize bootstrap for biased sample
+summary_sample.bias <- 
+  summary_bootstrap(bootstrap_sample.bias)
+#View summary
+summary_sample.bias
+```
+
+For the random sample, the age difference between males and female is `r sprintf(summary_sample.random[3, 'estimate'], fmt = '%#.2f')` with 95% CI \[`r sprintf(summary_sample.random[3, 'CI.lower'], fmt = '%#.2f')`, `r sprintf(summary_sample.random[3, 'CI.upper'], fmt = '%#.2f')`\]. Since the 95% CI includes zero, the average age females is not statistically significantly different from the average age of males, at the 0.05 level. Instead, for the biased sample, the age difference between males and female is `r sprintf(summary_sample.bias[3, 'estimate'], fmt = '%#.2f')` with 95% CI \[`r sprintf(summary_sample.bias[3, 'CI.lower'], fmt = '%#.2f')`, `r sprintf(summary_sample.bias[3, 'CI.upper'], fmt = '%#.2f')`\]. Since the 95% CI does not include zero, the average age females is statistically significantly different from the average age of males, at the 0.05 level.
+
+However, once we adjust for age $(\text{A})$ in the regression model (i.e., using `Model.2`) the bias disappear. We can visualize this in @fig-DAG.ex5-regression
+
+```{r}
+#| label: fig-DAG.ex5-regression
+#| fig-cap: 'Visualization of the relationship biological sex and acoustic sensation conditionning on age.'
+#| fig-cap-location: bottom
+#| fig-align: center
+#| fig-dpi: 900
+#| fig-width: 6
+#| fig-height: 4
+#| warning: false
+#| code-fold: true
+#| message: false
+
+
+pred_ex5_Model.2 <- cbind(ex5_sample.bias, 
+                          predict(ex5_Model.2, interval = 'confidence', level = 0.95))
+
+ex5_sample.bias %>%
+  ggplot(aes(x = A, y = C)) +
+  geom_point(aes(colour = S), shape = 19, size = 2, alpha = 0.07, stroke = NA) +
+  geom_ribbon(data = pred_ex5_Model.2, aes(x = A , y = fit, ymin = lwr, ymax = upr, fill = S), alpha = 0.2, show.legend = NA) +
+  geom_line(data = pred_ex5_Model.2, aes(x = A , y = fit, colour = S, linetype = 'sample', linewidth = 'sample')) + 
+  geom_line(data = truth, mapping = aes(colour = S, linetype = 'pop', linewidth = 'pop')) +
+scale_colour_manual('',
+                      breaks = c('male', 'female'),
+                      values = c('#0072B2', '#D55E00')) +
+  scale_fill_manual('',
+                      breaks = c('male', 'female'),
+                      values = c('#0072B2', '#D55E00')) +
+  scale_linetype_manual('',
+                        breaks = c('pop', 'sample'),
+                        labels = c('population', 'sample'),
+                        values = c('dashed', 'solid')) +
+  scale_linewidth_manual('',
+                         breaks = c('pop', 'sample'),
+                         labels = c('population', 'sample'),
+                         values = c(1, 0.5)) +
+  scale_x_continuous('Age') + 
+  scale_y_continuous('Acoustic sensation', 
+                     breaks = seq(from = 0, to = 100, by = 10)) +
+  facet_grid(.~S) +
+  guides(linetype = guide_legend(override.aes = list(alpha = 1, colour = 'black', fill = NA, linewidth = 0.5))) +
+  theme(legend.position = 'bottom',
+        legend.direction = 'horizontal',
+        panel.grid = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_rect(colour = 'black', fill = NA))
+```
+
+In @fig-DAG.ex5-regression, we can observe that within each age level the regression lines for the biased sample for males (i.e., solid blue line) and female (i.e., solid orange line) is very similar to the population lines (i.e., dashed lines). Adjusting for age closed the backdoor path leading to the correct estimate of the total average causal effect.
+
+#### Bayesian framework
+
+<details>
+
+<summary>Click to expand</summary>
+
+```{r}
+#| message: false
+
+#Fit the linear regression model with S and C (Model 1)
+ex5_Model.1 <- stan_glm(formula = C ~ S,
+                        family = gaussian(),
+                        data = ex5_sample.bias,
+                        #Prior coefficients
+                        prior = normal(location = c(0), scale = c(2)),
+                        #Prior intercept
+                        prior_intercept = normal(location = 10, scale = 6),
+                        #Prior sigma
+                        prior_aux = exponential(rate = 0.5),
+                        iter = 4000, warmup = 1000, 
+                        save_warmup = TRUE,
+                        chains = 4, cores = 4,
+                        seed = 2025) #for reproducibility   
+#View of the model
+ex5_Model.1
+```
+
+```{r}
+#| message: false
+
+#Fit the linear regression model with S, A and C (Model 2)
+ex5_Model.2 <- stan_glm(formula = C ~ S + A,
+                        family = gaussian(),
+                        data = ex5_sample.bias,
+                        #Prior coefficients
+                        prior = normal(location = c(0, 0), scale = c(2, 1)),
+                        #Prior intercept
+                        prior_intercept = normal(location = 10, scale = 6),
+                        #Prior sigma
+                        prior_aux = exponential(rate = 0.5),
+                        iter = 4000, warmup = 1000, 
+                        save_warmup = TRUE,
+                        chains = 4, cores = 4,
+                        seed = 2025) #for reproducibility
+#View of the model
+ex5_Model.2
+```
+
+```{r}
+#| message: false
+
+#Fit the linear regression model with S, N and C (Model 3)
+ex5_Model.3 <- stan_glm(formula =  C ~ S + N,
+                        family = gaussian(),
+                        data = ex5_sample.bias,
+                        #Prior coefficients
+                        prior = normal(location = c(0, 0), scale = c(2, 1.4)),
+                        #Prior intercept
+                        prior_intercept = normal(location = 10, scale = 6),
+                        #Prior sigma
+                        prior_aux = exponential(rate = 0.5),
+                        iter = 4000, warmup = 1000, 
+                        save_warmup = TRUE,
+                        chains = 4, cores = 4,
+                        seed = 2025) #for reproducibility
+#View of the model
+ex5_Model.3
+```
+
+In Bayesian analysis, there are important diagnostics that have to be carried out in order to assessed the convergence and efficiency of the Markov Chains. This is done by using the `monitor()` function which computes summaries of MCMC (Markov Chain Monte Carlo) draws and monitor convergence. Specifically, we will look at `Rhat`, `Bulk_ESS` and `Tail_ESS` metrics.
+
+```{r}
+#Diagnostics for model 1
+monitor(ex5_Model.1$stanfit)  
+```
+
+```{r}
+#Diagnostics for model 2
+monitor(ex5_Model.2$stanfit) 
+```
+
+```{r}
+#Diagnostics for model 2
+monitor(ex5_Model.3$stanfit) 
+```
+
+`Rhat` is a metric used to assess the convergence of Markov Chain Monte Carlo (MCMC) simulations. It helps determine if the MCMC chains have adequately explored the target posterior distribution. Specifically, it compares the between- and within-chain estimates for model parameters: If chains have not mixed well (i.e., the between- and within-chain estimates do not agree), R-hat is larger than 1. A general rule of thumb is to use the sample only if R-hat is less than 1.05; a larger value suggests that the chains have not mixed well, and the results might not be reliable. In our two models, all `Rhat` are equal to 1 indicating that the chains have mixed well and have adequately explored the target posterior distribution.
+
+`Bulk_ESS` and `Tail_ESS` stand for 'Bulk Effective Sample Size' and 'Tail Effective Sample Size,' respectively. Since MCMC samples are not truly independent (they are correlated), these metrics assess the sampling efficiencies, that is, they help evaluating how efficiently the MCMC sampler is exploring the parameters space.
+
+-   `Bulk_ESS` is useful measure for sampling efficiency in the bulk (center) of the distribution (e.g., efficiency of mean and median estimates);
+-   `Tail_ESS` is useful measure for sampling efficiency in the tails of the distribution (e.g., efficiency of variance and tail quantile estimates). A general rule of thumb is that both `Bulk-ESS` and `Tail-ESS` should be at least 100 (approximately) per Markov Chain in order to be reliable and indicate that estimates of respective posterior quantiles are reliable. In our two models, all `Bulk-ESS` and `Tail-ESS` are well above 400 (i.e., 100 multiplied by 4, the number of chains we used) indicating that estimates of posterior quantiles are reliable.
+
+Since we have established that the posteriors are reliable, we can now explore the model estimates. The estimated coefficients for the two models are then plotted in @fig-DAG.ex5-estimate-Bayesian.
+
+```{r}
+#| label: fig-DAG.ex5-estimate-Bayesian
+#| fig-cap: 'Posterior distribution of the biological sex coefficient for the three models. The black line and dot at the bottom of each distribution represent the highest density interval (HDI) and the mean, respectively.'
+#| fig-cap-location: bottom
+#| fig-align: center
+#| fig-width: 6
+#| fig-height: 3
+#| fig-dpi: 900
+#| warning: false
+#| code-fold: true
+
+#Extract draws from model 1 
+post_ex5_Model.1 <-
+  ex5_Model.1 %>% 
+  spread_draws(Sfemale) %>% #extract draws from the fitted model
+  mutate(model = 'Model.1') #add a new column to specify that the model
+
+#Extract draws from model 2
+post_ex5_Model.2 <-
+  ex5_Model.2 %>% 
+  spread_draws(Sfemale) %>% #extract draws from the fitted model
+  mutate(model = 'Model.2') #add a new column to specify that the model
+
+#Extract draws from model 2
+post_ex5_Model.3 <-
+  ex5_Model.3 %>% 
+  spread_draws(Sfemale) %>% #extract draws from the fitted model
+  mutate(model = 'Model.3') #add a new column to specify that the model
+
+#Combine draws
+plot.post <- rbind(post_ex5_Model.1, post_ex5_Model.2, post_ex5_Model.3)
+
+# Plot
+plot.post  %>%
+  ggplot(aes(y = model, x = Sfemale)) +
+  geom_vline(xintercept = b_sex.conf[2], alpha = 0.8, linetype = 'dashed', colour = 'blue') + 
+  stat_slabinterval(point_interval = 'mean_hdi',
+                    .width = c(.95)) +
+  scale_x_continuous('Estimate', 
+                     breaks = seq(from = -5, to = 5, by = 0.25),
+                     limits = c(-1.55, 0.55)
+                     ) +
+  theme(panel.grid = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_rect(colour = 'black', fill = NA),
+        axis.title.y = element_blank())
+```
+
+```{r}
+#| echo: false
+
+plot.post_mean.hdi <- 
+  plot.post %>% 
+  group_by(model) %>%
+  mean_hdi(.width = .95) #calculate 95 highest density intervals (HDI)
+```
+
+@fig-DAG.ex5-estimate-Bayesian shows the estimates (mean and 95 HDI) of the coefficient for tint for `Model.1`, `Model.2`, and `Model.3`.
+
+For `Model.1` we found a negative coefficient between biological sex $(\text{S})$ and acoustic sensation $(\text{C})$ (mean = `r sprintf(plot.post_mean.hdi[1, 'Sfemale'], fmt = '%#.3f')`, 95% HDI \[`r sprintf(plot.post_mean.hdi[1, '.lower'], fmt = '%#.3f')`, `r sprintf(plot.post_mean.hdi[1, '.upper'], fmt = '%#.3f')`\]). The estimated causal effect is biased, leading to the wrong conclusion that changing biological sex from `male` to `female` causes a decrease in acoustic sensation by `r sprintf(plot.post_mean.hdi[1, 'Sfemale'], fmt = '%#.3f')` units, on average.
+
+For `Model.2` we found a negative coefficient between biological sex $(\text{S})$ and acoustic sensation $(\text{C})$ (mean = `r sprintf(plot.post_mean.hdi[2, 'Sfemale'], fmt = '%#.3f')`, 95% HDI \[`r sprintf(plot.post_mean.hdi[2, '.lower'], fmt = '%#.3f')`, `r sprintf(plot.post_mean.hdi[2, '.upper'], fmt = '%#.3f')`\]). The estimated causal effect is unbiased, leading to the correct conclusion that changing biological sex from `male` to `female` causes a decrease in acoustic sensation by `r sprintf(plot.post_mean.hdi[2, 'Sfemale'], fmt = '%#.3f')` units, on average.
+
+For `Model.3` we found a positive coefficient between biological sex $(\text{S})$ and acoustic sensation $(\text{C})$ (mean = `r sprintf(plot.post_mean.hdi[3, 'Sfemale'], fmt = '%#.3f')`, 95% HDI \[`r sprintf(plot.post_mean.hdi[3, '.lower'], fmt = '%#.3f')`, `r sprintf(plot.post_mean.hdi[3, '.upper'], fmt = '%#.3f')`\]). The estimated causal effect is biased, leading to the wrong conclusion that changing biological sex from `male` to `female` causes a decrease in acoustic sensation by `r sprintf(plot.post_mean.hdi[3, 'Sfemale'], fmt = '%#.3f')` units, on average.
+
+Importantly, for both `Model.1`, `Model.2` and `Model.3`, the 95% HDI is the range of parameter values within which the most credible 95% of the posterior distribution falls. Unlike frequentist confidence interval, the Bayesian 95% HDI has a direct probabilistic meaning: every point inside the HDI has a higher probability density than any point outside the interval. Therefore, given the model, the prior and the data, we can say that there is a 95% probability that the data-generating parameter (i.e., `b_sex.conf = -1`) lies within the HDI. However, since `Model.1` and `Model.3` lead to biased estimates, we will reach the wrong conclusion by stating that there is a 95% probability that the data-generating parameter lies within the \[`r sprintf(plot.post_mean.hdi[1, '.lower'], fmt = '%#.3f')`, `r sprintf(plot.post_mean.hdi[1, '.upper'], fmt = '%#.3f')`\] and \[`r sprintf(plot.post_mean.hdi[3, '.lower'], fmt = '%#.3f')`, `r sprintf(plot.post_mean.hdi[3, '.upper'], fmt = '%#.3f')`\] intervals, for `Model.1` and `Model.3` respectively. This probability is 0%.
+
+As expected, the inclusion of age $(\text{A})$ in the regression model (i.e., using `Model.2`) leads to the correct estimate of the total average causal effect, while its exclusion (i.e., using `Model.1` and `Model.3`) leads to bias.
+
+The bias occurs because there is selection bias. Generally, selection bias takes place when the participants selected for a study, are not representative of the larger population intended to be analysed. In our example, participation is not random but influenced by variables that also affect the outcome, specifically, biological sex $(\text{S})$ and age $(\text{A})$. As a result, biological sex $(\text{S})$ and age $(\text{A})$ are associated in the biased sample, while they are not in the population (and consequently the random sample).
+
+To better explain this bias, we visualize the relationship between biological sex $(\text{S})$ and age $(\text{A})$ in the biased and random sample.
+
+```{r}
+#| label: fig-DAG.ex5-association-Bayesian
+#| fig-cap: 'Visualization of the relationship between biological sex and age in the biased and random sample.'
+#| fig-cap-location: bottom
+#| fig-align: center
+#| fig-dpi: 900
+#| fig-width: 6
+#| fig-height: 4
+#| warning: false
+#| code-fold: true
+#| message: false
+
+
+ex5_plot %>%
+  ggplot(aes(x = as.numeric(S), y = A)) +
+  geom_jitter(aes(fill = S, colour = S), shape = 19, size = 2, alpha = 0.1, stroke = NA, width = 0.2) + 
+  geom_hline(data = truth_line, mapping = aes(yintercept = A , linetype = 'linea'), colour = 'black') +
+  geom_segment(data = line_val, aes(x = 1, y = male, xend = 2, yend = female), colour = 'black', linetype = 'solid', linewidth = 0.5) +
+  geom_point(data = mean_val, aes(fill = S, shape = '2'), colour = 'black', size = 3, stroke = 0.75) + 
+  scale_colour_manual('',
+                      breaks = c('male', 'female', 'black'),
+                      values = c('#0072B2', '#D55E00', 'black')) +
+  scale_fill_manual('',
+                    breaks = c('male', 'female', 'black'),
+                    values = c('#0072B2', '#D55E00', NA)) +
+  scale_shape_manual('',
+                     breaks = c('2'),
+                     labels = c('mean age (sample)'),
+                     values = c(23)) +
+  scale_linetype_manual('',
+                        values = c('dashed'),
+                        breaks = c('linea'),
+                        labels = c('mean age (population)')) +
+  scale_x_continuous('Biological sex',
+                     breaks = c(1, 2),
+                     labels = c('male', 'female')) + 
+  scale_y_continuous('Age', 
+                     breaks = seq(from = 0, to = 100, by = 10)) +
+  guides(colour = guide_legend(override.aes = list(alpha = 1, fill = NA, size = 2), order = 1),
+         fill = 'none',
+         shape = guide_legend(override.aes = list(alpha = 1, size = 2), order = 2),
+         linetype = guide_legend(override.aes = list(alpha = 1, size = 2), order = 3)
+         ) +
+  facet_grid(.~sample) + 
+  theme(legend.position = 'bottom',
+        legend.direction = 'horizontal',
+        panel.grid = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_rect(colour = 'black', fill = NA))
+```
+
+@fig-DAG.ex5-association-Bayesian shows the relationship between biological sex $(\text{S})$ and age $(\text{A})$ in the biased and random sample. The horizontal dashed black line represent the average age in the population (i.e., `r sprintf(truth_line$A, fmt = '%#.2f')` years) for both males and females. In the random sample biological sex $(\text{S})$ and age $(\text{A})$ are not associated and the average age for males (i.e., `r sprintf(filter(mean_val, S == 'male' & sample == 'random')$A, fmt = '%#.2f')` years) and females (i.e., `r sprintf(filter(mean_val, S == 'female' & sample == 'random')$A, fmt = '%#.2f')` years) are similar to one another with a difference of `r sprintf(filter(mean_val, S == 'female' & sample == 'random')$A - filter(mean_val, S == 'male' & sample == 'random')$A, fmt = '%#.2f')` years. However, due to selection bias, the average age for males and females in the biased sample is clearly different from the population average. Additionally, biological sex $(\text{S})$ and age $(\text{A})$ are associated because females are more likely to be selected than males, and older people are less likely to be selected than younger people. As a result, females in the biased sample are, on average, older than males (average of `r sprintf(filter(mean_val, S == 'female' & sample == 'biased')$A, fmt = '%#.2f')` years for females, `r sprintf(filter(mean_val, S == 'male' & sample == 'biased')$A, fmt = '%#.2f')` years for males and a difference of `r sprintf(filter(mean_val, S == 'female' & sample == 'biased')$A - filter(mean_val, S == 'male' & sample == 'biased')$A, fmt = '%#.2f')` years).
+
+We can test for a difference between the average age of males and females more formally using Bayesian bootstrapping. We will do so by using the custom functions `my_Bayesian.bootstrap()` (see code below).
+
+```{r}
+#| code-fold: true
+
+#Perform bootstrapping
+my_Bayesian.bootstrap <-
+  function(data, n_bootstrap, variable, group, group.level){
+    data <- as.data.frame(data)
+    bootstrap <- data.frame(c(bayesboot(data = data[ data[[group]] == group.level[1],  variable], R = n_bootstrap, weighted.mean, use.weights = TRUE) %>% pull()),
+                            c(bayesboot(data = data[ data[[group]] == group.level[2],  variable], R = n_bootstrap, weighted.mean, use.weights = TRUE) %>% pull())) 
+    
+    colnames(bootstrap) <- c(group.level[1], group.level[2])
+    return(bootstrap)
+  }
+
+```
+
+First, we define the number of times to run the `my_Bayesian.bootstrap()` function. We fixed the number of bootstrap samples equal to 10,000 (i.e., `n_bootstrap = 1e4`). Subsequently, we run the `my_Bayesian.bootstrap()` function using as input both the random and biased sample.
+
+```{r}
+set.seed(2025) #for reproducibility
+#Bootstrap for random sample
+Bayesian.bootstrap_sample.random <- 
+  my_Bayesian.bootstrap(data = ex5_sample.random, 
+                        n_bootstrap = 1e4,
+                        variable = 'A', 
+                        group = 'S',
+                        group.level = c('male', 'female'))
+
+set.seed(2025) #for reproducibility
+#Bootstrap for biased sample
+Bayesian.bootstrap_sample.biased <- 
+  my_Bayesian.bootstrap(data = ex5_sample.bias, 
+                        n_bootstrap = 1e4,
+                        variable = 'A', 
+                        group = 'S',
+                        group.level = c('male', 'female'))
+
+
+
+
+
+```
+
+We can then calculate and visualize the age difference of the posterior sample between females and males (see @fig-DAG.ex5-association2-Bayesian).
+
+```{r}
+#| label: fig-DAG.ex5-association2-Bayesian
+#| fig-cap: 'Age difference between males and female in the biased and random sample.'
+#| fig-cap-location: bottom
+#| fig-align: center
+#| fig-dpi: 900
+#| fig-width: 6
+#| fig-height: 3
+#| warning: false
+#| code-fold: true
+#| message: false
+
+#Extract draws from model (random sample)
+post_Bayesian.bootstrap_sample.random <-
+  Bayesian.bootstrap_sample.random %>% 
+  mutate(diff = female - male,
+         sample = 'random') #add a new column to specify that the model
+
+#Extract draws from model (biased sample)
+post_Bayesian.bootstrap_sample.biased <-
+  Bayesian.bootstrap_sample.biased %>% 
+    mutate(diff = female - male,
+           sample = 'biased') #add a new column to specify that the model
+
+#Combine draws
+plot.post.corr <- rbind(post_Bayesian.bootstrap_sample.random, post_Bayesian.bootstrap_sample.biased)
+
+# Plot
+plot.post.corr %>%
+  ggplot(aes(y = sample, x = diff)) +
+  geom_vline(xintercept = 0, alpha = 0.8, linetype = 'dashed', colour = 'blue') + 
+  stat_slabinterval(point_interval = 'mean_hdi',
+                    .width = c(.95)) +
+  scale_x_continuous('Estimate', 
+                     breaks = seq(from = -5, to = 5, by = 0.5),
+                     ) +
+  theme(panel.grid = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_rect(colour = 'black', fill = NA),
+        axis.title.y = element_blank())
+
+```
+
+```{r}
+#| echo: false
+
+plot.post.corr_mean.hdi <- 
+  plot.post.corr %>% 
+  group_by(sample) %>%
+  mean_hdi(.width = .95) #calculate 95 highest density intervals (HDI)
+```
+
+For the random sample, the age difference between males and female has a mean of `r sprintf(plot.post.corr_mean.hdi[2, 'diff'], fmt = '%#.2f')` with 95% HDI \[`r sprintf(plot.post.corr_mean.hdi[2, 'diff.lower'], fmt = '%#.2f')`, `r sprintf(plot.post.corr_mean.hdi[2, 'diff.upper'], fmt = '%#.2f')`\]. Instead, for the biased sample, the age difference between males and female has a mean of `r sprintf(plot.post.corr_mean.hdi[1, 'diff'], fmt = '%#.2f')` with 95% HDI \[`r sprintf(plot.post.corr_mean.hdi[1, 'diff.lower'], fmt = '%#.2f')`, `r sprintf(plot.post.corr_mean.hdi[1, 'diff.upper'], fmt = '%#.2f')`\].
+
+However, once we adjust for age $(\text{A})$ in the regression model (i.e., using `Model.2`) the bias disappear. We can visualize this in @fig-DAG.ex5-regression-Bayesian.
+
+```{r}
+#| label: fig-DAG.ex5-regression-Bayesian
+#| fig-cap: 'Visualization of the relationship biological sex and acoustic sensation conditionning on age.'
+#| fig-cap-location: bottom
+#| fig-align: center
+#| fig-dpi: 900
+#| fig-width: 6
+#| fig-height: 4
+#| warning: false
+#| code-fold: true
+#| message: false
+
+#Expected value of the posterior predictive distribution (epred) for model 2
+epred_ex5_Model.2 <- 
+  ex5_Model.2 %>%
+  epred_draws(newdata = ex5_sample.bias, 
+              seed = 2025) %>%
+  group_by(A, S) %>%
+  mean_hdi(.epred, .width = .95) %>%
+  ungroup()
+
+ex5_sample.bias %>%
+  ggplot(aes(x = A, y = C)) +
+  geom_point(aes(colour = S), shape = 19, size = 2, alpha = 0.07, stroke = NA) +
+  geom_ribbon(data = epred_ex5_Model.2, aes(x = A , y = .epred, ymin = .lower, ymax = .upper, fill = S), alpha = 0.2, show.legend = NA) +
+  geom_line(data = epred_ex5_Model.2, aes(x = A , y = .epred, colour = S, linetype = 'sample', linewidth = 'sample')) + 
+  geom_line(data = truth, mapping = aes(colour = S, linetype = 'pop', linewidth = 'pop')) +
+
+  scale_colour_manual('',
+                      breaks = c('male', 'female'),
+                      values = c('#0072B2', '#D55E00')) +
+  scale_fill_manual('',
+                      breaks = c('male', 'female'),
+                      values = c('#0072B2', '#D55E00')) +
+  scale_linetype_manual('',
+                        breaks = c('pop', 'sample'),
+                        labels = c('population', 'sample'),
+                        values = c('dashed', 'solid')) +
+  scale_linewidth_manual('',
+                         breaks = c('pop', 'sample'),
+                         labels = c('population', 'sample'),
+                         values = c(1, 0.5)) +
+  scale_x_continuous('Age') + 
+  scale_y_continuous('acoustic sensation', 
+                     breaks = seq(from = 0, to = 100, by = 10)) +
+  facet_grid(.~S) + 
+  guides(linetype = guide_legend(override.aes = list(alpha = 1, colour = 'black', fill = NA, linewidth = 0.5))) +
+  theme(legend.position = 'bottom',
+        legend.direction = 'horizontal',
+        panel.grid = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_rect(colour = 'black', fill = NA))
+
+```
+
+In @fig-DAG.ex5-regression-Bayesian, we can observe that within each age level the regression lines for the biased sample for males (i.e., solid blue line) and female (i.e., solid orange line) is very similar to the population lines (i.e., dashed lines). Adjusting for age closed the backdoor path leading to the correct estimate of the total average causal effect.
+
+</details>
+
+## Session info {.unnumbered}
+
+Version information about R, the OS and attached or loaded packages.
+
+```{r}
+
+sessionInfo()
+
+```
