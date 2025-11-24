@@ -2,7 +2,7 @@
 
 ## Causal diagrams {.unnumbered}
 
-To understand bias in causal research, it is important to recognize that biases are often spurious (non-causal) associations that arise from underlying causal structures. These structures can be formally represented as causal diagrams using Directed Acyclic Graphs, which are visual models where variables are represented as nodes and causal relationships are depicted as arrows (edges) pointing from causes to their consequences. In a DAG, a causal path is a sequence of variables connected by directed edges (arrows) where all arrows point in the same direction, from the cause to the consequence. Conversely, a non-causal path contains at least one edge that points against the direction of the assumed causal flow. DAGs are acyclic, meaning they do not include feedback loops: no variable can causally influence itself, either directly or indirectly, within a single time point. DAGs are qualitative, nonparametric tools. They illustrate assumed causal relationships without specifying their strength or functional form. The arrows do not imply deterministic links, but rather the possibility of influence given appropriate conditions. Despite their simplicity, DAGs provide powerful insights into how statistical associations emerge—and how they can mislead us if misinterpreted. Biases can be characterized graphically based on the structural patterns in DAGs. There are four fundamental causal structures that serve as the basic building blocks for constructing more complex causal relationships in DAGs:
+To understand bias in causal research, it is important to recognize that biases are often spurious (non-causal) associations that arise from underlying causal structures. These structures can be formally represented as causal diagrams using Directed Acyclic Graphs (DAGs), which are visual models where variables are represented as nodes and causal relationships are depicted as arrows (edges) pointing from causes to their consequences. In a DAG, a causal path is a sequence of variables connected by directed edges (arrows) where all arrows point in the same direction, from the cause to the consequence. Conversely, a non-causal path contains at least one edge that points against the direction of the assumed causal flow. DAGs are acyclic, meaning they do not include feedback loops: no variable can causally influence itself, either directly or indirectly, within a single time point. DAGs are qualitative, nonparametric tools. They illustrate assumed causal relationships without specifying their strength or functional form. The arrows do not imply deterministic links, but rather the possibility of influence given appropriate conditions. Despite their simplicity, DAGs provide powerful insights into how statistical associations emerge—and how they can mislead us if misinterpreted. Biases can be characterized graphically based on the structural patterns in DAGs. There are four fundamental causal structures that serve as the basic building blocks for constructing more complex causal relationships in DAGs:
 
 -   Confounder (also called fork or common cause): A variable that causally affects (at least) two others.
 -   Mediator (also called pipe or chain): A variable lying on the causal pathway from the cause to the consequence.
@@ -38,14 +38,23 @@ DAG.intro <-
          D ~ S, 
          coords = dag_coords.intro)
 
+node_labels <- c(
+  C = 'bold(C)',
+  I = 'bold(I)',
+  V = 'bold(V)',
+  S = 'bold(S)',
+  D = 'bold(D)',
+  P = 'bold(P)'
+)
+
 ggplot(data = DAG.intro, aes(x = x, y = y, xend = xend, yend = yend)) +
-  geom_dag_text(colour = 'black', size = 10, parse = TRUE,
-                family = c('mono'),
-                label = c(expression(bold(C)), expression(bold(D)), expression(bold(I)), expression(bold(P)), expression(bold(S)), expression(bold(V)))) +
+  geom_dag_text(aes(label = node_labels[name]),
+                colour = 'black', size = 10, parse = TRUE,
+                family = 'mono') +
   geom_dag_edges(arrow_directed = grid::arrow(length = grid::unit(10, 'pt'), type = 'open'),
                  edge_colour = 'black',
-                 family = c('mono'), 
-                 fontface = c('bold')) + 
+                 family = 'mono', 
+                 fontface = 'bold') + 
   annotate('text', x = 3.5, y = 3.3, label = 'ventilation', 
            size = 4, hjust = 0.5, colour = 'grey50') +
   annotate('text', x = 1, y = 2.3, label = 'IAQ index', 
@@ -94,9 +103,9 @@ ggplot(data = DAG.intro, aes(x = x, y = y, xend = xend, yend = yend)) +
   geom_segment(x = 1, xend = 6, y = 1, yend = 1,
                linewidth = 14, lineend = 'round', colour = '#009E73', alpha = 0.05) +  
   
-  geom_dag_text(colour = 'black', size = 10, parse = TRUE,
-                family = c('mono'),
-                label = c(expression(bold(C)), expression(bold(D)), expression(bold(I)), expression(bold(P)), expression(bold(S)), expression(bold(V)))) +
+  geom_dag_text(aes(label = node_labels[name]),
+                colour = 'black', size = 10, parse = TRUE,
+                family = 'mono') +
   geom_dag_edges(arrow_directed = grid::arrow(length = grid::unit(10, 'pt'), type = 'open'),
                  edge_colour = 'black',
                  family = c('mono'), 
@@ -119,9 +128,9 @@ ggplot(data = DAG.intro, aes(x = x, y = y, xend = xend, yend = yend)) +
   geom_segment(x = 1, xend = 6, y = 1, yend = 1,
                linewidth = 14, lineend = 'round', colour = '#009E73', alpha = 0.05) +  
   
-  geom_dag_text(colour = 'black', size = 10, parse = TRUE,
-                family = c('mono'),
-                label = c(expression(bold(C)), expression(bold(D)), expression(bold(I)), expression(bold(P)), expression(bold(S)), expression(bold(V)))) +
+  geom_dag_text(aes(label = node_labels[name]),
+                colour = 'black', size = 10, parse = TRUE,
+                family = 'mono') +
   geom_dag_edges(arrow_directed = grid::arrow(length = grid::unit(10, 'pt'), type = 'open'),
                  edge_colour = 'black',
                  family = c('mono'), 
@@ -144,9 +153,9 @@ ggplot(data = DAG.intro, aes(x = x, y = y, xend = xend, yend = yend)) +
   geom_segment(x = 1, xend = 6, y = 1, yend = 1,
                linewidth = 14, lineend = 'round', colour = '#009E73', alpha = 0.05) +  
   
-  geom_dag_text(colour = 'black', size = 10, parse = TRUE,
-                family = c('mono'),
-                label = c(expression(bold(C)), expression(bold(D)), expression(bold(I)), expression(bold(P)), expression(bold(S)), expression(bold(V)))) +
+  geom_dag_text(aes(label = node_labels[name]),
+                colour = 'black', size = 10, parse = TRUE,
+                family = 'mono') +
   geom_dag_edges(arrow_directed = grid::arrow(length = grid::unit(10, 'pt'), type = 'open'),
                  edge_colour = 'black',
                  family = c('mono'), 
@@ -187,9 +196,9 @@ ggplot(data = DAG.intro, aes(x = x, y = y, xend = xend, yend = yend)) +
   geom_segment(x = 3.5, xend = 6, y = 3, yend = 1,
                linewidth = 14, lineend = 'round', colour = '#009E73', alpha = 0.05) +
   
-  geom_dag_text(colour = 'black', size = 10, parse = TRUE,
-                family = c('mono'),
-                label = c(expression(bold(C)), expression(bold(D)), expression(bold(I)), expression(bold(P)), expression(bold(S)), expression(bold(V)))) +
+  geom_dag_text(aes(label = node_labels[name]),
+                colour = 'black', size = 10, parse = TRUE,
+                family = 'mono') +
   geom_dag_edges(arrow_directed = grid::arrow(length = grid::unit(10, 'pt'), type = 'open'),
                  edge_colour = 'black',
                  family = c('mono'), 
@@ -212,9 +221,9 @@ ggplot(data = DAG.intro, aes(x = x, y = y, xend = xend, yend = yend)) +
   geom_segment(x = 3.5, xend = 6, y = 3, yend = 1,
                linewidth = 14, lineend = 'round', colour = '#009E73', alpha = 0.05) +
   
-  geom_dag_text(colour = 'black', size = 10, parse = TRUE,
-                family = c('mono'),
-                label = c(expression(bold(C)), expression(bold(D)), expression(bold(I)), expression(bold(P)), expression(bold(S)), expression(bold(V)))) +
+  geom_dag_text(aes(label = node_labels[name]),
+                colour = 'black', size = 10, parse = TRUE,
+                family = 'mono') +
   geom_dag_edges(arrow_directed = grid::arrow(length = grid::unit(10, 'pt'), type = 'open'),
                  edge_colour = 'black',
                  family = c('mono'), 
@@ -237,9 +246,9 @@ ggplot(data = DAG.intro, aes(x = x, y = y, xend = xend, yend = yend)) +
   geom_segment(x = 3.5, xend = 6, y = 3, yend = 1,
                linewidth = 14, lineend = 'round', colour = '#009E73', alpha = 0.05) +
   
-  geom_dag_text(colour = 'black', size = 10, parse = TRUE,
-                family = c('mono'),
-                label = c(expression(bold(C)), expression(bold(D)), expression(bold(I)), expression(bold(P)), expression(bold(S)), expression(bold(V)))) +
+  geom_dag_text(aes(label = node_labels[name]),
+                colour = 'black', size = 10, parse = TRUE,
+                family = 'mono') +
   geom_dag_edges(arrow_directed = grid::arrow(length = grid::unit(10, 'pt'), type = 'open'),
                  edge_colour = 'black',
                  family = c('mono'), 
@@ -281,9 +290,9 @@ ggplot(data = DAG.intro, aes(x = x, y = y, xend = xend, yend = yend)) +
   geom_segment(x = 1, xend = 3.5, y = 1, yend = 3,
                linewidth = 14, lineend = 'round', colour = '#009E73', alpha = 0.05) +
   
-  geom_dag_text(colour = 'black', size = 10, parse = TRUE,
-                family = c('mono'),
-                label = c(expression(bold(C)), expression(bold(D)), expression(bold(I)), expression(bold(P)), expression(bold(S)), expression(bold(V)))) +
+  geom_dag_text(aes(label = node_labels[name]),
+                colour = 'black', size = 10, parse = TRUE,
+                family = 'mono') +
   geom_dag_edges(arrow_directed = grid::arrow(length = grid::unit(10, 'pt'), type = 'open'),
                  edge_colour = 'black',
                  family = c('mono'), 
@@ -306,9 +315,9 @@ ggplot(data = DAG.intro, aes(x = x, y = y, xend = xend, yend = yend)) +
   geom_segment(x = 1, xend = 3.5, y = 1, yend = 3,
                linewidth = 14, lineend = 'round', colour = '#009E73', alpha = 0.05) +
   
-  geom_dag_text(colour = 'black', size = 10, parse = TRUE,
-                family = c('mono'),
-                label = c(expression(bold(C)), expression(bold(D)), expression(bold(I)), expression(bold(P)), expression(bold(S)), expression(bold(V)))) +
+  geom_dag_text(aes(label = node_labels[name]),
+                colour = 'black', size = 10, parse = TRUE,
+                family = 'mono') +
   geom_dag_edges(arrow_directed = grid::arrow(length = grid::unit(10, 'pt'), type = 'open'),
                  edge_colour = 'black',
                  family = c('mono'), 
@@ -331,9 +340,9 @@ ggplot(data = DAG.intro, aes(x = x, y = y, xend = xend, yend = yend)) +
   geom_segment(x = 1, xend = 3.5, y = 1, yend = 3,
                linewidth = 14, lineend = 'round', colour = '#009E73', alpha = 0.05) +
   
-  geom_dag_text(colour = 'black', size = 10, parse = TRUE,
-                family = c('mono'),
-                label = c(expression(bold(C)), expression(bold(D)), expression(bold(I)), expression(bold(P)), expression(bold(S)), expression(bold(V)))) +
+  geom_dag_text(aes(label = node_labels[name]),
+                colour = 'black', size = 10, parse = TRUE,
+                family = 'mono') +
   geom_dag_edges(arrow_directed = grid::arrow(length = grid::unit(10, 'pt'), type = 'open'),
                  edge_colour = 'black',
                  family = c('mono'), 
@@ -343,7 +352,7 @@ ggplot(data = DAG.intro, aes(x = x, y = y, xend = xend, yend = yend)) +
 
 ```
 
-In @fig-DAG.intro.V_C, we are interested in the total average causal effect (green line) of ventilation $(\text{V})$ on CO~2~ concentration $(\text{C})$. In this setting, sleep quality $(\text{S})$ is a collider (i.e., common effect) of $\text{V}$ and $\text{C}$ and creates a non-causal path between $\text{V}$ and $\text{C}$ (i.e., $\text{V} \rightarrow \text{S} \leftarrow \text{C}$). Leaving a collider unadjusted keeps the non-causal path closed (light blue line in @fig-DAG.intro.V_C (a)). Adjusting for a collider opens this path, introducing bias. @fig-DAG.intro.V_C (b) illustrates this, where the grey-filled box visually represents the adjustment, and the orange line indicates the opened path. Adjusting for the descendant of a collider is illustrated in @fig-DAG.intro.V_C (c). Assuming that daily productivity $(\text{D})$ is not a perfect proxy of sleep quality $(\text{S})$, adjusting for $\text{S}$ (grey-filled box) will only partially open the path (dashed orange line). As a result, bias will occur, but its absolute magnitude will be less than that with a fully open path.
+In @fig-DAG.intro.V_C, we are interested in the total average causal effect (green line) of ventilation $(\text{V})$ on CO~2~ concentration $(\text{C})$. In this setting, sleep quality $(\text{S})$ is a collider (i.e., common effect) of $\text{V}$ and $\text{C}$ and creates a non-causal path between $\text{V}$ and $\text{C}$ (i.e., $\text{V} \rightarrow \text{S} \leftarrow \text{C}$). Leaving a collider unadjusted keeps the non-causal path closed (light blue line in @fig-DAG.intro.V_C (a)). Adjusting for a collider opens this path, introducing bias. @fig-DAG.intro.V_C (b) illustrates this, where the grey-filled box visually represents the adjustment, and the orange line indicates the opened path. Adjusting for the descendant of a collider is illustrated in @fig-DAG.intro.V_C (c). Assuming that daily productivity $(\text{D})$ is not a perfect proxy of sleep quality $(\text{S})$, adjusting for $\text{D}$ (grey-filled box) will only partially open the path (dashed orange line). As a result, bias will occur, but its absolute magnitude will be less than that with a fully open path.
 
 ## Backdoor criterion and adjustment criterion {.unnumbered}
 
@@ -359,6 +368,130 @@ The core idea of the backdoor criterion for identifying the total average causal
 The adjustment criterion is also based on two conditions. Assuming that $\text{X}$ is the cause and $\text{Y}$ is the outcome of interest, the conditions are:
 
 1.  The adjustment set must exclude any descendant of $\text{X}$ that lies on a causal path from $\text{X}$ to $\text{Y}$;
-2.  The adjustment set must block all non-causal path from $\text{X}$ to $\text{Y}$.
+2.  The adjustment set must block all non-causal paths from $\text{X}$ to $\text{Y}$.
 
-These conditions differ from those of the backdoor criterion. The first condition permits the inclusion of descendant of $\text{X}$, provided they are not on the causal path from $\text{X}$ to $\text{Y}$. The second condition requires closing all non-causal paths, not just the backdoor paths (since backdoor paths are non-causal paths, but not all non-causal paths are backdoor paths). If either of these conditions is violated, under the given causal assumptions, no valid adjustment set exists.
+These conditions differ from those of the backdoor criterion. The first condition permits the inclusion of descendants of $\text{X}$, provided they are not on the causal path from $\text{X}$ to $\text{Y}$. The second condition requires closing all non-causal paths, not just the backdoor paths (since backdoor paths are non-causal paths, but not all non-causal paths are backdoor paths). If either of these conditions is violated, under the given causal assumptions, no valid adjustment set exists.
+
+## Causation and prediction
+
+```{r}
+#| label: fig-DAG.general
+#| fig-cap: 'Illustrations of causation and prediction for an outcome $\text{Y}$. The pink outline indicates the direct causes of $\text{Y}$; the blue outline indicates the Markov blanket for $\text{Y}$; the orange outlines indicate the colliders.'
+#| fig-cap-location: bottom
+#| fig-align: center
+#| fig-width: 4.5
+#| fig-height: 4.5
+#| out-width: '60%'
+#| fig-dpi: 900
+#| warning: false
+#| code-fold: true
+
+library(ggdag) # for DAG
+library(dagitty)
+library(dplyr)
+library(ggplot2) # for visualisation
+library(ggforce)
+
+dag_coords.intro <-
+  data.frame(name = c('X5', 'X1', 'X3', 'X7', 'Y', 'X2', 'X4', 'X8', 'X6'),
+             x = c(1, 3.5, 3.5, 3.5, 6, 8.5, 8.5, 8.5, 11),
+             y = c(2, 4, 3, 1, 2, 4, 3, 1, 2))
+
+DAG.intro <-
+  dagify(X3 ~ X1,
+         X4 ~ X2,
+         Y ~ X3 + X4,
+         X7 ~ Y + X5,
+         X8 ~ Y + X6,
+         X9 ~ X7, 
+         coords = dag_coords.intro)
+
+node_labels <- c(
+  X1 = 'bold(X[1])', 
+  X2 = 'bold(X[2])', 
+  X3 = 'bold(X[3])', 
+  X4 = 'bold(X[4])', 
+  X5 = 'bold(X[5])',
+  X6 = 'bold(X[6])', 
+  X7 = 'bold(X[7])', 
+  X8 = 'bold(X[8])', 
+  Y = 'bold(Y)'
+)
+
+highlight.nodes_cause <- c('X3', 'X4', 'Y')
+
+highlight.nodes_prediction <- c('X3', 'X4', 'Y', 'X5', 'X7', 'X8', 'X6')
+
+highlight.nodes_collider1 <- c('Y', 'X5', 'X7')
+
+highlight.nodes_collider2 <- c('Y',  'X8', 'X6')
+
+
+ggplot(data = DAG.intro, aes(x = x, y = y, xend = xend, yend = yend)) +
+ geom_mark_hull(
+    data = dag_coords.intro %>%
+      filter(name %in% highlight.nodes_cause) %>%
+      { centroid <- c(mean(.$x), mean(.$y))
+        mutate(., 
+               x = x + 0.1 * (x - centroid[1]),
+               y = y + 0.1 * (y - centroid[2]))
+        },
+    #subset(dag_coords.intro, name %in% highlight.nodes_cause),
+    aes(x = x, y = y), inherit.aes = FALSE,
+    colour = alpha('#CC79A7', 0.5),
+    size = 2) +
+   geom_mark_hull(
+    data = dag_coords.intro %>%
+      filter(name %in% highlight.nodes_prediction) %>%
+      { centroid <- c(mean(.$x), mean(.$y))
+        mutate(., 
+               x = x + 0.05 * (x - centroid[1]),
+               y = y + 0.05 * (y - centroid[2]))
+        },
+    #subset(dag_coords.intro, name %in% highlight.nodes_prediction),
+    aes(x = x, y = y), inherit.aes = FALSE,
+    colour = alpha('#0072B2', 0.5),
+    size = 2) +
+     geom_mark_hull(
+    data = dag_coords.intro %>%
+      filter(name %in% highlight.nodes_collider1) %>%
+      { centroid <- c(mean(.$x), mean(.$y))
+        mutate(., 
+               x = x + 0.1 * (x - centroid[1]),
+               y = y + 0.1 * (y - centroid[2]))
+        },
+    #subset(dag_coords.intro, name %in% highlight.nodes_collider1),
+    aes(x = x, y = y), inherit.aes = FALSE,
+    colour = alpha('#E69F00', 0.5),
+    size = 2) +
+     geom_mark_hull(
+    data = dag_coords.intro %>%
+      filter(name %in% highlight.nodes_collider2) %>%
+      { centroid <- c(mean(.$x), mean(.$y))
+        mutate(., 
+               x = x + 0.1 * (x - centroid[1]),
+               y = y + 0.1 * (y - centroid[2]))
+        },
+    #subset(dag_coords.intro, name %in% highlight.nodes_collider2),
+    aes(x = x, y = y), inherit.aes = FALSE,
+    colour = alpha('#E69F00', 0.5), 
+    size = 2) +
+  geom_dag_text(aes(label = node_labels[name]),
+                parse = TRUE,
+                colour = 'black',
+                size = 10,
+                family = 'mono') +
+  geom_dag_edges(arrow_directed = grid::arrow(length = grid::unit(10, 'pt'), type = 'open'),
+                 edge_colour = 'black',
+                 family = 'mono',
+                 fontface = 'bold') +
+  coord_cartesian(xlim = c(0.5, 11.5), ylim = c(0.8, 4.2)) +
+  theme_dag()
+
+```
+
+As previously mentioned, in a Directed Acyclic Graph (DAG), causation follows the the direction of the arrow but association does not. In @fig-DAG.general, for example, $\text{X}_1$ and $\text{X}_3$ are associated because there is a line connecting them, but since the arrow goes from $\text{X}_1$ to $\text{X}_3$ (i.e., $\text{X}_1 \rightarrow \text{X}_3$), the DAG assumes that $\text{X}_1$ is causing $\text{X}_3$: changing $\text{X}_1$ will change $\text{X}_3$, but changing $\text{X}_3$ will not affect $\text{X}_1$. This directionality is critical for causal inference, which seeks to answer “what-if” questions about the effect of actively intervening on a variable. Pure prediction, in contrast, relies on observed associations. To predict $\text{X}_1$, one could use $\text{X}_3$, even though $\text{X}_3$ is the consequence of $\text{X}_1$. If the association between $\text{X}_1$ and $\text{X}_3$ is positive, observing a high value for $\text{X}_3$ would imply observing a high value for $\text{X}_1$. The important point is that this implies observing $\text{X}_1$ and $\text{X}_3$ rather than directly changing them. Manually setting $\text{X}_3$ to a high value will not affect $\text{X}_1$.
+
+To better illustrate the difference between causation and prediction, consider that in @fig-DAG.general the outcome of interest is $\text{Y}$. Here, $\text{Y}$ is directly causes by $\text{X}_3$ and $\text{X}_4$ and indirectly by $\text{X}_1$ (i.e., $\text{X}_1 \rightarrow \text{X}_3 \rightarrow \text{Y}$) and $\text{X}_2$ (i.e., $\text{X}_2 \rightarrow \text{X}_4 \rightarrow \text{Y}$). As such, all causal information for $\text{Y}$ is contained in $\text{X}_3$ and $\text{X}_4$ (the pink outline in @fig-DAG.general). However, if the goal is to predict $\text{Y}$, a more accurate prediction can be obtained by including also $\text{X}_5$, $\text{X}_6$, $\text{X}_7$ and $\text{X}_8$ (the blue outline in @fig-DAG.general). This is the case because, by blocking all paths leading to $\text{Y}$, these variables (i.e., $\text{X}_3$, $\text{X}_4$, $\text{X}_5$, $\text{X}_6$, $\text{X}_7$ and $\text{X}_8$) encompass all the information available in the data about $\text{Y}$. The set of variables that contains all information about $\text{Y}$ (or more formally, the set of variables that renders $\text{Y}$ conditionally independent of all other variables in the DAG) is called the Markov blanket.
+
+A predictive model can leverage all the information contained in the Markov blanket to improve accuracy, even though some of the variables are not causal (i.e., $\text{X}_5$, $\text{X}_6$, $\text{X}_7$ and $\text{X}_8$). A causal model should only include variables that are needed to identify the causal effect of interest. As explained previously, $\text{X}_5 \rightarrow \text{X}_7 \leftarrow \text{Y}$ and $\text{Y} \rightarrow \text{X}_8 \leftarrow \text{X}_6$ are colliders (the orange outline in @fig-DAG.general). Therefore, including $\text{X}_5$, $\text{X}_6$, $\text{X}_7$ and $\text{X}_8$ will introduce bias.

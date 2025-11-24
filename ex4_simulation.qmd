@@ -44,14 +44,23 @@ DAG.ex4 <-
          A ~ R,
          coords = dag_coords.ex4)
 
+node_labels <- c(
+  M = 'bold(M)', 
+  H = 'bold(H)', 
+  A = 'bold(A)', 
+  R = 'bold(R)'
+)
+
 ggplot(data = DAG.ex4, aes(x = x, y = y, xend = xend, yend = yend)) +
-  geom_dag_text(colour = 'black', size = 10, parse = TRUE,
-                family = c('mono'),
-                label = c(expression(bold(A)), expression(bold(H)), expression(bold(M)), expression(bold(R)))) +
+  geom_dag_text(aes(label = node_labels[name]),
+                parse = TRUE,
+                colour = 'black',
+                size = 10,
+                family = 'mono') +
   geom_dag_edges(arrow_directed = grid::arrow(length = grid::unit(10, 'pt'), type = 'open'),
                  edge_colour = 'black',
-                 family = c('mono'), 
-                 fontface = c('bold')) + 
+                 family = 'mono',
+                 fontface = 'bold') +
   annotate('text', x = 1, y = 3.3, label = 'microbial aerosol', 
            size = 4, hjust = 0.5, colour = 'grey50') +
   annotate('text', x = 3.5, y = 1.7, label = 'relative humidity', 
@@ -151,13 +160,15 @@ ggplot(data = DAG.ex4, aes(x = x, y = y, xend = xend, yend = yend)) +
   #visualize causal effect path
   geom_segment(x = 1, xend = 6, y = 3, yend = 3,
                linewidth = 14, lineend = 'round', colour = '#009E73', alpha = 0.05) +
-  geom_dag_text(colour = 'black', size = 10, parse = TRUE,
-                family = c('mono'),
-                label = c(expression(bold(A)), expression(bold(H)), expression(bold(M)), expression(bold(R)))) +
+  geom_dag_text(aes(label = node_labels[name]),
+                parse = TRUE,
+                colour = 'black',
+                size = 10,
+                family = 'mono') +
   geom_dag_edges(arrow_directed = grid::arrow(length = grid::unit(10, 'pt'), type = 'open'),
                  edge_colour = 'black',
-                 family = c('mono'), 
-                 fontface = c('bold')) + 
+                 family = 'mono',
+                 fontface = 'bold') +
   annotate('text', x = 1, y = 3.3, label = 'microbial aerosol', 
            size = 4, hjust = 0.5, colour = 'grey50') +
   annotate('text', x = 3.5, y = 1.7, label = 'relative humidity', 
@@ -226,7 +237,7 @@ data.frame(colA = c('Research question', rep('Assumptions', 6), rep('Variables',
                     "Relative humidity (H): categorical variable ['low'; 'high']",
                     "Microbial aerosol (M): categorical variable ['low'; 'high']",
                     "Absence (A): categorical variable ['no'; 'yes']",
-                    'Respiratory irritation (R): continous variable [unit: -]')) %>%
+                    'Respiratory irritation (R): continuous variable [unit: -]')) %>%
   group_by(colA) %>% 
   mutate(colA = ifelse(row_number() == 1, colA, '')) %>% 
   ungroup() %>% 
@@ -244,7 +255,7 @@ data.frame(colA = c('Research question', rep('Assumptions', 6), rep('Variables',
 
 ```
 
-To carry out the estimation step, we utilised linear regression within both the frequentist and Bayesian frameworks. Specifically, we will run three regression models:
+To carry out the estimation step, we utilized linear regression within both the frequentist and Bayesian frameworks. Specifically, we will run three regression models:
 
 -   `Model.1` will include microbial aerosol $(\text{M})$, relative humidity $(\text{H})$ and absence $(\text{A})$ as predictor;
 -   `Model.2` will include microbial aerosol $(\text{M})$ and relative humidity $(\text{H})$ as predictors.
@@ -314,7 +325,7 @@ ggplot(aes(x = estimate, y = model, xmin = lower.95.CI, xmax = upper.95.CI)) +
 
 ```
 
-@fig-DAG.ex4-estimate shows the estimates (point estimate and 95 confidence interval) of the coefficient for microbial aerosol for `Model.1` and `Model.2`.
+@fig-DAG.ex4-estimate shows the estimates (point estimate and 95% confidence interval) of the coefficient for microbial aerosol for `Model.1` and `Model.2`.
 
 For `Model.1` we found a positive coefficient between microbial aerosol $(\text{M})$ and respiratory irritation $(\text{R})$ equal to `r sprintf(coef(ex4_Model.1)['Mhigh'], fmt = '%#.3f')` with 95% CI \[`r sprintf(confint(ex4_Model.1, level = 0.95, type = 'Wald')['Mhigh', ], fmt = '%#.3f')`\]. Since the 95% CI excludes zero, the regression coefficient is statistically significantly different from zero at the 0.05 level (p-value = `r sprintf('%.3g', summary(ex4_Model.1)$coef['Mhigh', 4])`). Moreover, since the 95% CI does not include the data-generating parameter for microbial aerosol (i.e., `b_micr.resp = 3`), we can deduce that the estimated coefficient for microbial aerosol is statistically significantly different from 3 at the 0.05 level. We can test this more formally by using the `linearHypothesis()` function. Specifically,
 
@@ -444,7 +455,7 @@ coverage <- coefs_ex4 %>%
 
 @fig-DAG.ex4-CI shows the first 200 estimates (point estimate and confidence interval) of the coefficient for microbial aerosol for `Model.1` and `Model.2`. If all the thousand simulations are considered, the frequency of the coverage of the calculated confidence intervals (i.e., how many times the confidence intervals overlap the data-generating parameter) is `r coverage[1, 'mean.coverage']` and `r coverage[2, 'mean.coverage']` for `Model.1` and `Model.2`, respectively. Since the estimate of the causal effect for `Model.1` are biased, the calculated confidence intervals for this model do not have the expected coverage. In fact, confidence intervals only quantify the uncertainty due to random error (i.e., sample variability), not systematic error (i.e., bias). Instead, the estimate from `Model.2` are unbiased and the calculated 95% confidence intervals have the expected coverage (i.e., overlap the data-generating parameter 95% of the times).
 
-We can also visualize all the 5,000 the estimates of the coefficient for microbial aerosol for `Model.1` and `Model.2` (i.e., the white dots in @fig-DAG.ex4-CI).
+We can also visualize all the 1,000 estimates of the coefficient for microbial aerosol for `Model.1` and `Model.2` (the estimates were shown as white dots in @fig-DAG.ex4-CI).
 
 ```{r}
 #| label: fig-DAG.ex4-mean-estimate
@@ -488,9 +499,9 @@ mean.estimate <- coefs_ex4 %>%
 
 In @fig-DAG.ex4-mean-estimate, the estimated coefficients are visualized through a histogram. Here, we can see that the estimates for `Model.1` are not clustered around the data-generating parameter (blue dashed line) having a mean estimate of `r sprintf(mean.estimate[1, 'mean.estimate'], fmt = '%#.3f')` (with `r sprintf(mean.estimate[1, 'sd.estimate'], fmt = '%#.3f')` standard deviation). In contrast, the estimates for `Model.2` having a mean estimate of `r sprintf(mean.estimate[2, 'mean.estimate'], fmt = '%#.3f')` (with `r sprintf(mean.estimate[2, 'sd.estimate'], fmt = '%#.3f')` standard deviation) are centered around the data-generating parameter.
 
-As expected, adjusting for relative humidity $(\text{H})$ (i.e., using `Model.2`) leads to the correct estimate of the total average causal effect of microbial aerosol $(\text{M})$ on respiratory irritation $(\text{R})$. However, when adjusting for both relative humidity $(\text{H})$ and absence $(\text{A})$ (i.e., using `Model.1`) the estimates are biased. This happened because absence $(\text{A})$ is a descendant of respiratory irritation $(\text{R})$, which is collider. Adjusting for a descendant of a collider is akin to adjust for the collider itself, and, therefore can introduce a similar bias.
+As expected, adjusting for relative humidity $(\text{H})$ (i.e., using `Model.2`) leads to the correct estimate of the total average causal effect of microbial aerosol $(\text{M})$ on respiratory irritation $(\text{R})$. However, when adjusting for both relative humidity $(\text{H})$ and absence $(\text{A})$ (i.e., using `Model.1`) the estimates are biased. This happened because absence $(\text{A})$ is a descendant of respiratory irritation $(\text{R})$, which is collider. Adjusting for a descendant of a collider is akin to adjusting for the collider itself, and, therefore, can introduce a similar bias.
 
-To better explain this bias, we can plot the magnified DAG that shows that causes of all variables. 
+To better explain this bias, we can plot the magnified DAG that shows that causes of all variables.
 
 ```{r}
 #| label: fig-DAG.ex4-3
@@ -521,6 +532,17 @@ DAG.ex4.3 <-
          A ~ R + UA,
          coords = dag_coords.ex4.3)
 
+node_labels <- c(
+  M = 'bold(M)', 
+  H = 'bold(H)', 
+  A = 'bold(A)', 
+  R = 'bold(R)', 
+  UA = 'bold(UA)', 
+  UH = 'bold(UH)', 
+  UM = 'bold(UM)', 
+  UR = 'bold(UR)'
+)
+
 ggplot(data = DAG.ex4.3, aes(x = x, y = y, xend = xend, yend = yend)) +
   #visualize causal effect path
   geom_segment(x = 1, xend = 8, y = 3, yend = 3,
@@ -529,14 +551,15 @@ ggplot(data = DAG.ex4.3, aes(x = x, y = y, xend = xend, yend = yend)) +
   geom_point(x = 8, y = 1, shape = 1, size = 18, stroke = 0.9, color = 'black') +
   geom_point(x = 3.5, y = 1, shape = 1, size = 18, stroke = 0.9, color = 'black') +
   geom_point(x = 1, y = 2, shape = 1, size = 18, stroke = 0.9, color = 'black') +
-  geom_dag_text(colour = 'black', size = 10, parse = TRUE,
-                family = c('mono'),
-                label = c(expression(bold(A)), expression(bold(H)), expression(bold(M)), expression(bold(R)), 
-                          expression(bold(u[A])), expression(bold(u[H])), expression(bold(u[M])), expression(bold(u[R])))) +
+  geom_dag_text(aes(label = node_labels[name]),
+                parse = TRUE,
+                colour = 'black',
+                size = 10,
+                family = 'mono') +
   geom_dag_edges(arrow_directed = grid::arrow(length = grid::unit(10, 'pt'), type = 'open'),
                  edge_colour = 'black',
-                 family = c('mono'), 
-                 fontface = c('bold')) + 
+                 family = 'mono',
+                 fontface = 'bold') +
   coord_cartesian(xlim = c(0.5, 8.5), ylim = c(0.8, 3.2))  +
   theme_dag()
 
@@ -551,22 +574,23 @@ ggplot(data = DAG.ex4.3, aes(x = x, y = y, xend = xend, yend = yend)) +
   geom_point(x = 1, y = 2, shape = 1, size = 18, stroke = 0.9, color = 'black') +
   #adjusted variable
   geom_point(x = 6, y = 1, shape = 22, size = 14, stroke = 0.9, fill = 'grey80', colour = 'black') +
-  geom_dag_text(colour = 'black', size = 10, parse = TRUE,
-                family = c('mono'),
-                label = c(expression(bold(A)), expression(bold(H)), expression(bold(M)), expression(bold(R)), 
-                          expression(bold(u[A])), expression(bold(u[H])), expression(bold(u[M])), expression(bold(u[R])))) +
+  geom_dag_text(aes(label = node_labels[name]),
+                parse = TRUE,
+                colour = 'black',
+                size = 10,
+                family = 'mono') +
   geom_dag_edges(arrow_directed = grid::arrow(length = grid::unit(10, 'pt'), type = 'open'),
                  edge_colour = 'black',
-                 family = c('mono'), 
-                 fontface = c('bold')) + 
+                 family = 'mono',
+                 fontface = 'bold') +
   coord_cartesian(xlim = c(0.5, 8.5), ylim = c(0.8, 3.2))  +
   theme_dag()
 
 ```
 
-@fig-DAG.ex4-3 shows the magnified DAG with the causes for all variables. Here the causes only affect one variable (i.e., they are not shared) and are circled because they are considered unobserved. Consequently, they are generally omitted in a DAG. This structure implies that, for example, respiratory irritation $(\text{R})$ is a function of microbial aerosol $(\text{M})$, relative humidity $(\text{H})$, and some unobserved influence $(\text{u}_\text{R})$. This unobserved influence (or set of influences) can be thought of as variations around the expected value of $\text{R}$ for each $\text{M}$ and $\text{H}$. 
+@fig-DAG.ex4-3 shows the magnified DAG with the causes for all variables. Here the causes only affect one variable (i.e., they are not shared) and are circled because they are considered unobserved. Consequently, they are generally omitted in a DAG. This structure implies that, for example, respiratory irritation $(\text{R})$ is a function of microbial aerosol $(\text{M})$, relative humidity $(\text{H})$, and some unobserved influence $(\text{u}_\text{R})$. This unobserved influence (or set of influences) can be thought of as variations around the expected value of $\text{R}$ for each $\text{M}$ and $\text{H}$.
 
-From @fig-DAG.ex4-3, it is clear that respiratory irritation $(\text{R})$ is a virtual collider on the path $\text{M} \rightarrow \text{R} \leftarrow \text{u}_\text{R}$. This path is closed (@fig-DAG.ex4-3 (a)), but conditioning on absence $\text{A}$ partially opens it (@fig-DAG.ex4-3 (b)). This happens because $\text{A}$ is a descendant of $\text{R}$, and adjusting for $\text{A}$ is similar to adjusting for $\text{R}$. Consequently, the non-causal path  $\text{M} \rightarrow \text{R} \leftarrow \text{u}_\text{R}$ is now partially open, creating a spurious association between $\text{M}$ and $\text{u}_\text{R}$ that distorts the estimate of the causal effect of $\text{M}$ on $\text{R}$. This is why the estimates from `Model.1` are biased. Following the backdoor criterion, we should not adjust for any descendant of the cause of interest. Since `Model.2` does not include absence, which is a descendant of microbial aerosol (i.e., $\text{M} \rightarrow \text{R} \rightarrow \text{A}$), the estimates from this model are unbiased.
+From @fig-DAG.ex4-3, it is clear that respiratory irritation $(\text{R})$ is a virtual collider on the path $\text{M} \rightarrow \text{R} \leftarrow \text{u}_\text{R}$. This path is closed (@fig-DAG.ex4-3 (a)), but conditioning on absence $\text{A}$ partially opens it (@fig-DAG.ex4-3 (b)). This happens because $\text{A}$ is a descendant of $\text{R}$, and adjusting for $\text{A}$ is similar to adjusting for $\text{R}$. Consequently, the non-causal path $\text{M} \rightarrow \text{R} \leftarrow \text{u}_\text{R}$ is now partially open, creating a spurious association between $\text{M}$ and $\text{u}_\text{R}$ that distorts the estimate of the causal effect of $\text{M}$ on $\text{R}$. This is why the estimates from `Model.1` are biased. Following the backdoor criterion, we should not adjust for any descendant of the cause of interest. Since `Model.2` does not include absence, which is a descendant of microbial aerosol (i.e., $\text{M} \rightarrow \text{R} \rightarrow \text{A}$), the estimates from this model are unbiased.
 
 </details>
 
@@ -614,7 +638,7 @@ ex4_Model.2 <- stan_glm(formula = R ~ M + H,
 ex4_Model.2
 ```
 
-In Bayesian analysis, there are important diagnostics that have to be carried out in order to assessed the convergence and efficiency of the Markov Chains. This is done by using the `monitor()` function which computes summaries of MCMC (Markov Chain Monte Carlo) draws and monitor convergence. Specifically, we will look at `Rhat`, `Bulk_ESS` and `Tail_ESS` metrics.
+In Bayesian analysis, there are important diagnostics that have to be carried out in order to assess the convergence and efficiency of the Markov Chains. This is done by using the `monitor()` function which computes summaries of MCMC (Markov Chain Monte Carlo) draws and monitor convergence. Specifically, we will look at `Rhat`, `Bulk_ESS` and `Tail_ESS` metrics.
 
 ```{r}
 #Diagnostics for model 1
@@ -630,8 +654,8 @@ monitor(ex4_Model.2$stanfit)
 
 `Bulk_ESS` and `Tail_ESS` stand for 'Bulk Effective Sample Size' and 'Tail Effective Sample Size,' respectively. Since MCMC samples are not truly independent (they are correlated), these metrics assess the sampling efficiencies, that is, they help evaluating how efficiently the MCMC sampler is exploring the parameters space.
 
--   `Bulk_ESS` is useful measure for sampling efficiency in the bulk (center) of the distribution (e.g., efficiency of mean and median estimates);
--   `Tail_ESS` is useful measure for sampling efficiency in the tails of the distribution (e.g., efficiency of variance and tail quantile estimates). A general rule of thumb is that both `Bulk-ESS` and `Tail-ESS` should be at least 100 (approximately) per Markov Chain in order to be reliable and indicate that estimates of respective posterior quantiles are reliable. In our two models, all `Bulk-ESS` and `Tail-ESS` are well above 400 (i.e., 100 multiplied by 4, the number of chains we used) indicating that estimates of posterior quantiles are reliable.
+-   `Bulk_ESS` is a useful measure for sampling efficiency in the bulk (center) of the distribution (e.g., efficiency of mean and median estimates);
+-   `Tail_ESS` is a useful measure for sampling efficiency in the tails of the distribution (e.g., efficiency of variance and tail quantile estimates). A general rule of thumb is that both `Bulk-ESS` and `Tail-ESS` should be at least 100 (approximately) per Markov Chain in order to be reliable and indicate that estimates of respective posterior quantiles are reliable. In our two models, all `Bulk-ESS` and `Tail-ESS` are well above 400 (i.e., 100 multiplied by 4, the number of chains we used) indicating that estimates of posterior quantiles are reliable.
 
 Since we have established that the posteriors are reliable, we can now explore the model estimates. The estimated coefficients for the two models are then plotted in @fig-DAG.ex4-estimate-Bayesian.
 
@@ -664,9 +688,9 @@ plot.post <- rbind(post_ex4_Model.1, post_ex4_Model.2)
 # Plot
 plot.post  %>%
   ggplot(aes(y = model, x = Mhigh)) +
-  geom_vline(xintercept = b_micr.resp, alpha = 0.8, linetype = 'dashed', colour = 'blue') + 
   stat_slabinterval(point_interval = 'mean_hdi',
                     .width = c(.95)) +
+  geom_vline(xintercept = b_micr.resp, alpha = 0.8, linetype = 'dashed', colour = 'blue') + 
   scale_x_continuous('Estimate', 
                      breaks = seq(from = -5, to = 5, by = 0.5),
                      limits = c(0.5, 3.5)) +
@@ -682,10 +706,10 @@ plot.post  %>%
 plot.post_mean.hdi <- 
   plot.post %>% 
   group_by(model) %>%
-  mean_hdi(.width = .95) #calculate 95 highest density intervals (HDI)
+  mean_hdi(.width = .95) #calculate 95% highest density intervals (HDI)
 ```
 
-@fig-DAG.ex4-estimate-Bayesian shows the estimates (mean and 95 HDI) of the coefficient for microbial aerosol for `Model.1`, and `Model.2`.
+@fig-DAG.ex4-estimate-Bayesian shows the estimates (mean and 95% HDI) of the coefficient for microbial aerosol for `Model.1`, and `Model.2`.
 
 For `Model.1` we found a positive coefficient between microbial aerosol $(\text{M})$ and respiratory irritation $(\text{R})$ (mean = `r sprintf(plot.post_mean.hdi[1, 'Mhigh'], fmt = '%#.3f')`, 95% HDI \[`r sprintf(plot.post_mean.hdi[1, '.lower'], fmt = '%#.3f')`, `r sprintf(plot.post_mean.hdi[1, '.upper'], fmt = '%#.3f')`\]). The estimated causal effect is biased, leading to the wrong conclusion that changing microbial aerosol from `low` to `high` causes an increase in lung infection by `r sprintf(plot.post_mean.hdi[1, 'Mhigh'], fmt = '%#.3f')` units, on average.
 
@@ -693,9 +717,9 @@ For `Model.2` we found a positive coefficient between microbial aerosol $(\text{
 
 Importantly, for both `Model.1` and `Model.1`, the 95% HDI is the range of parameter values within which the most credible 95% of the posterior distribution falls. Unlike frequentist confidence interval, the Bayesian 95% HDI has a direct probabilistic meaning: every point inside the HDI has a higher probability density than any point outside the interval. Therefore, given the model, the prior and the data, we can say that there is a 95% probability that the data-generating parameter (i.e., `b_micr.resp = 3`) lies within the HDI. However, since `Model.1` leads to a biased estimate, we will reach the wrong conclusion by stating that there is a 95% probability that the data-generating parameter lies within the \[`r sprintf(plot.post_mean.hdi[1, '.lower'], fmt = '%#.3f')`, `r sprintf(plot.post_mean.hdi[1, '.upper'], fmt = '%#.3f')`\] interval. This probability is 0%.
 
-As expected, adjusting for relative humidity $(\text{H})$ (i.e., using `Model.2`) leads to the correct estimate of the total average causal effect of microbial aerosol $(\text{M})$ on respiratory irritation $(\text{R})$. However, when adjusting for both relative humidity $(\text{H})$ and absence $(\text{A})$ (i.e., using `Model.1`) the estimates are biased. This happened because absence $(\text{A})$ is a descendant of respiratory irritation $(\text{R})$, which is collider. Adjusting for a descendant of a collider is akin to adjust for the collider itself, and, therefore can introduce a similar bias.
+As expected, adjusting for relative humidity $(\text{H})$ (i.e., using `Model.2`) leads to the correct estimate of the total average causal effect of microbial aerosol $(\text{M})$ on respiratory irritation $(\text{R})$. However, when adjusting for both relative humidity $(\text{H})$ and absence $(\text{A})$ (i.e., using `Model.1`) the estimates are biased. This happened because absence $(\text{A})$ is a descendant of respiratory irritation $(\text{R})$, which is collider. Adjusting for a descendant of a collider is akin to adjusting for the collider itself, and, therefore, can introduce a similar bias.
 
-To better explain this bias, we can plot the magnified DAG that shows that causes of all variables. 
+To better explain this bias, we can plot the magnified DAG that shows that causes of all variables.
 
 ```{r}
 #| label: fig-DAG.ex4-3-Bayesian
@@ -726,6 +750,17 @@ DAG.ex4.3 <-
          A ~ R + UA,
          coords = dag_coords.ex4.3)
 
+node_labels <- c(
+  M = 'bold(M)', 
+  H = 'bold(H)', 
+  A = 'bold(A)', 
+  R = 'bold(R)', 
+  UA = 'bold(UA)', 
+  UH = 'bold(UH)', 
+  UM = 'bold(UM)', 
+  UR = 'bold(UR)'
+)
+
 ggplot(data = DAG.ex4.3, aes(x = x, y = y, xend = xend, yend = yend)) +
   #visualize causal effect path
   geom_segment(x = 1, xend = 8, y = 3, yend = 3,
@@ -734,14 +769,15 @@ ggplot(data = DAG.ex4.3, aes(x = x, y = y, xend = xend, yend = yend)) +
   geom_point(x = 8, y = 1, shape = 1, size = 18, stroke = 0.9, color = 'black') +
   geom_point(x = 3.5, y = 1, shape = 1, size = 18, stroke = 0.9, color = 'black') +
   geom_point(x = 1, y = 2, shape = 1, size = 18, stroke = 0.9, color = 'black') +
-  geom_dag_text(colour = 'black', size = 10, parse = TRUE,
-                family = c('mono'),
-                label = c(expression(bold(A)), expression(bold(H)), expression(bold(M)), expression(bold(R)), 
-                          expression(bold(u[A])), expression(bold(u[H])), expression(bold(u[M])), expression(bold(u[R])))) +
+  geom_dag_text(aes(label = node_labels[name]),
+                parse = TRUE,
+                colour = 'black',
+                size = 10,
+                family = 'mono') +
   geom_dag_edges(arrow_directed = grid::arrow(length = grid::unit(10, 'pt'), type = 'open'),
                  edge_colour = 'black',
-                 family = c('mono'), 
-                 fontface = c('bold')) + 
+                 family = 'mono',
+                 fontface = 'bold') +
   coord_cartesian(xlim = c(0.5, 8.5), ylim = c(0.8, 3.2))  +
   theme_dag()
 
@@ -756,22 +792,23 @@ ggplot(data = DAG.ex4.3, aes(x = x, y = y, xend = xend, yend = yend)) +
   geom_point(x = 1, y = 2, shape = 1, size = 18, stroke = 0.9, color = 'black') +
   #adjusted variable
   geom_point(x = 6, y = 1, shape = 22, size = 14, stroke = 0.9, fill = 'grey80', colour = 'black') +
-  geom_dag_text(colour = 'black', size = 10, parse = TRUE,
-                family = c('mono'),
-                label = c(expression(bold(A)), expression(bold(H)), expression(bold(M)), expression(bold(R)), 
-                          expression(bold(u[A])), expression(bold(u[H])), expression(bold(u[M])), expression(bold(u[R])))) +
+  geom_dag_text(aes(label = node_labels[name]),
+                parse = TRUE,
+                colour = 'black',
+                size = 10,
+                family = 'mono') +
   geom_dag_edges(arrow_directed = grid::arrow(length = grid::unit(10, 'pt'), type = 'open'),
                  edge_colour = 'black',
-                 family = c('mono'), 
-                 fontface = c('bold')) + 
+                 family = 'mono',
+                 fontface = 'bold') +
   coord_cartesian(xlim = c(0.5, 8.5), ylim = c(0.8, 3.2))  +
   theme_dag()
 
 ```
 
-@fig-DAG.ex4-3-Bayesian shows the magnified DAG with the causes for all variables. Here the causes only affect one variable (i.e., they are not shared) and are circled because they are considered unobserved. Consequently, they are generally omitted in a DAG. This structure implies that, for example, respiratory irritation $(\text{R})$ is a function of microbial aerosol $(\text{M})$, relative humidity $(\text{H})$, and some unobserved influence $(\text{u}_\text{R})$. This unobserved influence (or set of influences) can be thought of as variations around the expected value of $\text{R}$ for each $\text{M}$ and $\text{H}$. 
+@fig-DAG.ex4-3-Bayesian shows the magnified DAG with the causes for all variables. Here the causes only affect one variable (i.e., they are not shared) and are circled because they are considered unobserved. Consequently, they are generally omitted in a DAG. This structure implies that, for example, respiratory irritation $(\text{R})$ is a function of microbial aerosol $(\text{M})$, relative humidity $(\text{H})$, and some unobserved influence $(\text{u}_\text{R})$. This unobserved influence (or set of influences) can be thought of as variations around the expected value of $\text{R}$ for each $\text{M}$ and $\text{H}$.
 
-From @fig-DAG.ex4-3, it is clear that respiratory irritation $(\text{R})$ is a virtual collider on the path $\text{M} \rightarrow \text{R} \leftarrow \text{u}_\text{R}$. This path is closed (@fig-DAG.ex4-3-Bayesian (a)), but conditioning on absence $\text{A}$ partially opens it (@fig-DAG.ex4-3-Bayesian (b)). This happens because $\text{A}$ is a descendant of $\text{R}$, and adjusting for $\text{A}$ is similar to adjusting for $\text{R}$. Consequently, the non-causal path  $\text{M} \rightarrow \text{R} \leftarrow \text{u}_\text{R}$ is now partially open, creating a spurious association between $\text{M}$ and $\text{u}_\text{R}$ that distorts the estimate of the causal effect of $\text{M}$ on $\text{R}$. This is why the estimates from `Model.1` are biased. Following the backdoor criterion, we should not adjust for any descendant of the cause of interest. Since `Model.2` does not include absence, which is a descendant of microbial aerosol (i.e., $\text{M} \rightarrow \text{R} \rightarrow \text{A}$), the estimates from this model are unbiased.
+From @fig-DAG.ex4-3, it is clear that respiratory irritation $(\text{R})$ is a virtual collider on the path $\text{M} \rightarrow \text{R} \leftarrow \text{u}_\text{R}$. This path is closed (@fig-DAG.ex4-3-Bayesian (a)), but conditioning on absence $\text{A}$ partially opens it (@fig-DAG.ex4-3-Bayesian (b)). This happens because $\text{A}$ is a descendant of $\text{R}$, and adjusting for $\text{A}$ is similar to adjusting for $\text{R}$. Consequently, the non-causal path $\text{M} \rightarrow \text{R} \leftarrow \text{u}_\text{R}$ is now partially open, creating a spurious association between $\text{M}$ and $\text{u}_\text{R}$ that distorts the estimate of the causal effect of $\text{M}$ on $\text{R}$. This is why the estimates from `Model.1` are biased. Following the backdoor criterion, we should not adjust for any descendant of the cause of interest. Since `Model.2` does not include absence, which is a descendant of microbial aerosol (i.e., $\text{M} \rightarrow \text{R} \rightarrow \text{A}$), the estimates from this model are unbiased.
 
 ## Session info {.unnumbered}
 

@@ -42,14 +42,23 @@ DAG.ex1 <-
          P ~ T + H,
          coords = dag_coords.ex1)
 
+node_labels <- c(
+  T = 'bold(T)', 
+  H = 'bold(H)', 
+  P = 'bold(P)'
+)
+
+
 ggplot(data = DAG.ex1, aes(x = x, y = y, xend = xend, yend = yend)) +
-  geom_dag_text(colour = 'black', size = 10, parse = TRUE,
-                family = c('mono'),
-                label = c(expression(bold(H)), expression(bold(P)),  expression(bold(T)))) +
+  geom_dag_text(aes(label = node_labels[name]),
+                parse = TRUE,
+                colour = 'black',
+                size = 10,
+                family = 'mono') +
   geom_dag_edges(arrow_directed = grid::arrow(length = grid::unit(10, 'pt'), type = 'open'),
                  edge_colour = 'black',
-                 family = c('mono'), 
-                 fontface = c('bold')) + 
+                 family = 'mono',
+                 fontface = 'bold') +
   annotate('text', x = 1, y = 0.7, label = 'indoor air temperature', 
            size = 4, hjust = 0.4, colour = 'grey50') +
   annotate('text', x = 3.5, y = 3.3, label = 'HVAC system', 
@@ -140,13 +149,15 @@ ggplot(data = DAG.ex1, aes(x = x, y = y, xend = xend, yend = yend)) +
   #visualize causal effect path
   geom_segment(x = 1, xend = 6, y = 1, yend = 1,
                linewidth = 14, lineend = 'round', colour = '#009E73', alpha = 0.05) +
-  geom_dag_text(colour = 'black', size = 10, parse = TRUE,
-                family = c('mono'),
-                label = c(expression(bold(H)), expression(bold(P)),  expression(bold(T)))) +
+  geom_dag_text(aes(label = node_labels[name]),
+                parse = TRUE,
+                colour = 'black',
+                size = 10,
+                family = 'mono') +
   geom_dag_edges(arrow_directed = grid::arrow(length = grid::unit(10, 'pt'), type = 'open'),
                  edge_colour = 'black',
-                 family = c('mono'), 
-                 fontface = c('bold')) + 
+                 family = 'mono',
+                 fontface = 'bold') +
   annotate('text', x = 1, y = 0.7, label = 'indoor air temperature', 
            size = 4, hjust = 0.4, colour = 'grey50') +
   annotate('text', x = 3.5, y = 3.3, label = 'HVAC system', 
@@ -186,7 +197,7 @@ adjustmentSets(DAG.ex1,
 
 ```
 
-As expected, the resulting adjustment set includes HVAC system $(\text{H})$. Therefore, to get the correct estimate of the atotal average causal effect, we need to adjust for $\text{H}$; failing to do so will lead to bias.
+As expected, the resulting adjustment set includes HVAC system $(\text{H})$. Therefore, to get the correct estimate of the total average causal effect, we need to adjust for $\text{H}$; failing to do so will lead to bias.
 
 ### Estimation
 
@@ -213,7 +224,7 @@ data.frame(colA = c('Research question', rep('Assumptions', 6), rep('Variables',
                     'No measurement error: all variables are measured perfectly.', 
                     'Indoor air temperature (T): continuous variable [unit: °C]',
                     "HVAC (H): categorical variable ['classic'; 'alternative']",
-                    "Produtivity (P): continous variable [unit: -]")) %>%
+                    "Productivity (P): continuous variable [unit: -]")) %>%
   group_by(colA) %>% 
   mutate(colA = ifelse(row_number() == 1, colA, '')) %>% 
   ungroup() %>% 
@@ -231,7 +242,7 @@ data.frame(colA = c('Research question', rep('Assumptions', 6), rep('Variables',
 
 ```
 
-To carry out the estimation step, we utilised linear regression within both the frequentist and Bayesian frameworks. Specifically, we will run two regression models:
+To carry out the estimation step, we utilized linear regression within both the frequentist and Bayesian frameworks. Specifically, we will run two regression models:
 
 -   `Model.1` will include only indoor air temperature $(\text{T})$ as predictor;
 -   `Model.2` will include both indoor air temperature $(\text{T})$ and HVAC system $(\text{H})$ as predictors.
@@ -294,7 +305,7 @@ ggplot(aes(x = estimate, y = model, xmin = lower.95.CI, xmax = upper.95.CI)) +
 
 ```
 
-@fig-DAG.ex1-estimate shows the estimates (point estimate and 95 confidence interval) of the coefficient for temperature for `Model.1` and `Model.2`.
+@fig-DAG.ex1-estimate shows the estimates (point estimate and 95% confidence interval) of the coefficient for temperature for `Model.1` and `Model.2`.
 
 For `Model.1` we found a positive coefficient between indoor air temperature $(\text{T})$ and productivity $(\text{P})$ equal to `r sprintf(coef(ex1_Model.1)['T'], fmt = '%#.3f')` with 95% CI \[`r sprintf(confint(ex1_Model.1, level = 0.95, type = 'Wald')['T', ], fmt = '%#.3f')`\]. Since the 95% CI does not include zero, the regression coefficient is statistically significantly different from zero at the 0.05 level (p-value = `r sprintf('%.3g', summary(ex1_Model.1)$coef['T', 4])`). Additionally, since the 95% CI does not include the data-generating parameter for indoor air temperature (i.e., `b_temp.prod = -1`), we can deduce that the estimated coefficient for indoor air temperature is statistically significantly different from -1 at the 0.05 level (although this will be the case for all numbers within the 95% confidence interval). We can test this more formally by using the `linearHypothesis()` function. Specifically,
 
@@ -421,9 +432,9 @@ coverage <- coefs_ex1 %>%
   summarise(mean.coverage = sprintf('%0.1f%%', mean(coverage)*100))
 ```
 
-@fig-DAG.ex1-CI shows the first 200 estimates (point estimate and confidence interval) of the coefficient for indoor air temperature for `Model.1` and `Model.2`. If all the thousand simulations are considered, the frequency of the coverage of the calculated confidence intervals (i.e., how many times the confidence intervals overlap the data-generating parameter) is `r coverage[1, 'mean.coverage']` and `r coverage[2, 'mean.coverage']` for `Model.1` and `Model.2`, respectively. Since the estimates of the causal effect for `Model.1` are biased, the calculated confidence intervals for this model do not have the expected coverage. In fact, confidence intervals only quantify the uncertainty due to random error (i.e., sample variability), not systematic error (i.e., bias). Instead, the estimate from `Model.2` are unbiased and the calculated 95% confidence intervals have the expected coverage (i.e., overlap the data-generating parameter 95% of the times).
+@fig-DAG.ex1-CI shows the first 200 estimates (point estimate and confidence interval) of the coefficient for indoor air temperature for `Model.1` and `Model.2`. If all the thousand simulations are considered, the frequency of the coverage of the calculated confidence intervals (i.e., how many times the confidence intervals overlap the data-generating parameter) is `r coverage[1, 'mean.coverage']` and `r coverage[2, 'mean.coverage']` for `Model.1` and `Model.2`, respectively. Since the estimates of the causal effect for `Model.1` are biased, the calculated confidence intervals for this model do not have the expected coverage. In fact, confidence intervals only quantify the uncertainty due to random error (i.e., sample variability), not systematic error (i.e., bias). Instead, the estimates from `Model.2` are unbiased and the calculated 95% confidence intervals have the expected coverage (i.e., overlap the data-generating parameter 95% of the times).
 
-We can also visualize all the 1,000 the estimates of the coefficient for indoor air temperature for `Model.1` and `Model.2` (i.e., the white dots in @fig-DAG.ex1-CI).
+We can also visualize all the 1,000 estimates of the coefficient for indoor air temperature for `Model.1` and `Model.2` (the estimates were shown as white dots in @fig-DAG.ex1-CI).
 
 ```{r}
 #| label: fig-DAG.ex1-mean-estimate
@@ -465,7 +476,7 @@ mean.estimate <- coefs_ex1 %>%
             sd.estimate = sd(estimate))
 ```
 
-In @fig-DAG.ex1-mean-estimate, the estimated coefficients are visualized through a histogram. Here, we can see that the estimates for `Model.1` are not clustered around the data-generating parameter (blue dashed line) having a mean estimate of `r sprintf(mean.estimate[1, 'mean.estimate'], fmt = '%#.3f')` (with `r sprintf(mean.estimate[1, 'sd.estimate'], fmt = '%#.3f')` standard deviation). In contrast, the estimates for `Model.2` having a mean estimate of `r sprintf(mean.estimate[2, 'mean.estimate'], fmt = '%#.3f')` (with `r sprintf(mean.estimate[2, 'sd.estimate'], fmt = '%#.3f')` standard deviation) are centred around the data-generating parameter.
+In @fig-DAG.ex1-mean-estimate, the estimated coefficients are visualized through a histogram. Here, we can see that the estimates for `Model.1` are not clustered around the data-generating parameter (blue dashed line) having a mean estimate of `r sprintf(mean.estimate[1, 'mean.estimate'], fmt = '%#.3f')` (with `r sprintf(mean.estimate[1, 'sd.estimate'], fmt = '%#.3f')` standard deviation). In contrast, the estimates for `Model.2` having a mean estimate of `r sprintf(mean.estimate[2, 'mean.estimate'], fmt = '%#.3f')` (with `r sprintf(mean.estimate[2, 'sd.estimate'], fmt = '%#.3f')` standard deviation) are centered around the data-generating parameter.
 
 As expected, the inclusion of HVAC system $(\text{H})$ in the regression model (i.e., using `Model.2`) leads to the correct estimate of the total average causal effect, while its exclusion (i.e., using `Model.1`) leads to bias. Specifically, the estimated effect is reversed. This phenomenon is known as Simpson's Paradox. Generally, Simpson's Paradox happens when a trend that appears in different groups of data reverses (or disappears) when the groups are combined.
 
@@ -547,7 +558,7 @@ ex1_Model.1_alternative <- lm(formula = P ~ T, data = ex1_sample.random_alternat
 ex1_Model.1_alternative        
 ```
 
-We can visualize the estimated coefficients for these new regression models and compared them with the one estimated from `Model.1` and `Model.2`.
+We can visualize the estimated coefficients for these new regression models and compare them with the ones estimated from `Model.1` and `Model.2`.
 
 ```{r}
 #| label: fig-DAG.ex1-estimate2
@@ -588,7 +599,7 @@ ggplot(aes(x = estimate, y = model, xmin = lower.95.CI, xmax = upper.95.CI)) +
         axis.title.y = element_blank())
 ```
 
-@fig-DAG.ex1-estimate2, we can see that only the estimated coefficients for `Model.1` are biased. As explained in the identification step, to identify the causal effect of indoor air temperature $(\text{T})$ on productivity $(\text{P})$, we need to block the backdoor path (i.e., the non-causal path) $\text{T} \leftarrow \text{H} \rightarrow \text{P}$. Fitting a separate regression model to the subset of data with `H == 'classic'` and one to `H == 'alternative'` is equivalent to conditioning for $\text{H}$, closing the backdoor path and allowing unbiased estimation of the causal effect of indoor air temperature $(\text{T})$ on productivity $(\text{P})$ (although this comes at the price of a larger standard error and consequently wider confidence intervals compared to `Model.2`, where $\text{H}$ is added as a predictor).
+@fig-DAG.ex1-estimate2, we can see that only the estimated coefficient for `Model.1` is biased. As explained in the identification step, to identify the causal effect of indoor air temperature $(\text{T})$ on productivity $(\text{P})$, we need to block the backdoor path (i.e., the non-causal path) $\text{T} \leftarrow \text{H} \rightarrow \text{P}$. Fitting a separate regression model to the subset of data with `H == 'classic'` and one to `H == 'alternative'` is equivalent to conditioning for $\text{H}$, closing the backdoor path and allowing unbiased estimation of the causal effect of indoor air temperature $(\text{T})$ on productivity $(\text{P})$ (although this comes at the price of a larger standard error and consequently wider confidence intervals compared to `Model.2`, where $\text{H}$ is added as a predictor).
 
 #### Bayesian framework
 
@@ -638,7 +649,7 @@ ex1_Model.2 <- stan_glm(formula = P ~ T + H,
 ex1_Model.2
 ```
 
-In Bayesian analysis, there are important diagnostics that have to be carried out in order to assessed the convergence and efficiency of the Markov Chains. This is done by using the `monitor()` function which computes summaries of MCMC (Markov Chain Monte Carlo) draws and monitor convergence. Specifically, we will look at `Rhat`, `Bulk_ESS` and `Tail_ESS` metrics.
+In Bayesian analysis, there are important diagnostics that have to be carried out in order to assess the convergence and efficiency of the Markov Chains. This is done by using the `monitor()` function which computes summaries of MCMC (Markov Chain Monte Carlo) draws and monitor convergence. Specifically, we will look at `Rhat`, `Bulk_ESS` and `Tail_ESS` metrics.
 
 ```{r}
 #Diagnostics for model 1
@@ -654,8 +665,8 @@ monitor(ex1_Model.2$stanfit)
 
 `Bulk_ESS` and `Tail_ESS` stand for 'Bulk Effective Sample Size' and 'Tail Effective Sample Size,' respectively. Since MCMC samples are not truly independent (they are correlated), these metrics assess the sampling efficiencies, that is, they help evaluating how efficiently the MCMC sampler is exploring the parameters space.
 
--   `Bulk_ESS` is useful measure for sampling efficiency in the bulk (center) of the distribution (e.g., efficiency of mean and median estimates);
--   `Tail_ESS` is useful measure for sampling efficiency in the tails of the distribution (e.g., efficiency of variance and tail quantile estimates). A general rule of thumb is that both `Bulk-ESS` and `Tail-ESS` should be at least 100 (approximately) per Markov Chain in order to be reliable and indicate that estimates of respective posterior quantiles are reliable. In our two models, all `Bulk-ESS` and `Tail-ESS` are well above 400 (i.e., 100 multiplied by 4, the number of chains we used) indicating that estimates of posterior quantiles are reliable.
+-   `Bulk_ESS` is a useful measure for sampling efficiency in the bulk (center) of the distribution (e.g., efficiency of mean and median estimates);
+-   `Tail_ESS` is a useful measure for sampling efficiency in the tails of the distribution (e.g., efficiency of variance and tail quantile estimates). A general rule of thumb is that both `Bulk-ESS` and `Tail-ESS` should be at least 100 (approximately) per Markov Chain in order to be reliable and indicate that estimates of respective posterior quantiles are reliable. In our two models, all `Bulk-ESS` and `Tail-ESS` are well above 400 (i.e., 100 multiplied by 4, the number of chains we used) indicating that estimates of posterior quantiles are reliable.
 
 Since we have established that the posteriors are reliable, we can now explore the model estimates.
 
@@ -690,9 +701,9 @@ plot.post <- rbind(post_ex1_Model.1, post_ex1_Model.2)
 # Plot
 plot.post  %>%
   ggplot(aes(y = model, x = T)) +
-  geom_vline(xintercept = b_temp.prod, alpha = 0.8, linetype = 'dashed', colour = 'blue') + 
   stat_slabinterval(point_interval = 'mean_hdi',
                     .width = c(.95)) +
+  geom_vline(xintercept = b_temp.prod, alpha = 0.8, linetype = 'dashed', colour = 'blue') + 
   scale_x_continuous('Estimate', 
                      breaks = seq(from = -5, to = 5, by = 0.5),
                      limits = c(-1.25, 1.25)) +
@@ -708,10 +719,10 @@ plot.post  %>%
 plot.post_mean.hdi <- 
   plot.post %>% 
   group_by(model) %>%
-  mean_hdi(.width = .95) #calculate 95 highest density intervals (HDI)
+  mean_hdi(.width = .95) #calculate 95% highest density intervals (HDI)
 ```
 
-@fig-DAG.ex1-estimate-Bayesian shows the estimates (mean and 95 HDI) of the coefficient for temperature for `Model.1` and `Model.2`.
+@fig-DAG.ex1-estimate-Bayesian shows the estimates (mean and 95% HDI) of the coefficient for temperature for `Model.1` and `Model.2`.
 
 For `Model.1` we found a positive coefficient between indoor air temperature $(\text{T})$ and productivity $(\text{P})$ (mean = `r sprintf(plot.post_mean.hdi[1, 'T'], fmt = '%#.3f')`, 95% HDI \[`r sprintf(plot.post_mean.hdi[1, '.lower'], fmt = '%#.3f')`, `r sprintf(plot.post_mean.hdi[1, '.upper'], fmt = '%#.3f')`\]). The estimated causal effect is therefore biased, leading to the wrong conclusion that an increase of 1°C in indoor air temperature causes an increase in productivity by `r sprintf(plot.post_mean.hdi[1, 'T'], fmt = '%#.3f')` units, on average. In contrast, for `Model.2` we found a negative coefficient between indoor air temperature $(\text{T})$ and productivity $(\text{P})$ (mean = `r sprintf(plot.post_mean.hdi[2, 'T'], fmt = '%#.3f')`, 95% HDI \[`r sprintf(plot.post_mean.hdi[2, '.lower'], fmt = '%#.3f')`, `r sprintf(plot.post_mean.hdi[2, '.upper'], fmt = '%#.3f')`\]). The estimated causal effect is therefore unbiased, leading to the correct conclusion that an increase of 1°C in indoor air temperature causes a decrease in productivity by `r sprintf(plot.post_mean.hdi[2, 'T'], fmt = '%#.3f')` units, on average.
 
@@ -863,9 +874,9 @@ plot.post1 <- rbind(post_ex1_Model.1, post_ex1_Model.1_classic, post_ex1_Model.1
 #Plot
 plot.post1  %>%
   ggplot(aes(y = model, x = T)) +
-  geom_vline(xintercept = b_temp.prod, alpha = 0.8, linetype = 'dashed', colour = 'blue') + 
   stat_slabinterval(point_interval = 'mean_hdi',
                     .width = c(.95)) +
+  geom_vline(xintercept = b_temp.prod, alpha = 0.8, linetype = 'dashed', colour = 'blue') + 
   scale_x_continuous('Estimate', 
                      breaks = seq(from = -5, to = 5, by = 0.5),
                      limits = c(-1.5, 1.5)) +
@@ -876,7 +887,7 @@ plot.post1  %>%
 
 ```
 
-@fig-DAG.ex1-estimate-Bayesian2, we can see that only the estimated coefficients for `Model.1` are biased. As explained in the identification step, to identify the causal effect of indoor air temperature $(\text{T})$ on productivity $(\text{P})$, we need to block the backdoor path (i.e., the non-causal path) $\text{T} \leftarrow \text{H} \rightarrow \text{P}$. Fitting a separate regression model to the subset of data with `H == 'classic'` and one to `H == 'alternative'` is equivalent to conditioning for $\text{H}$, closing the backdoor path and allowing unbiased estimation of the causal effect of indoor air temperature $(\text{T})$ on productivity $(\text{P})$ (although this comes at the price of a larger standard error and consequently wider credible interval compared to `Model.2`, where $\text{H}$ is added as a predictor).
+@fig-DAG.ex1-estimate-Bayesian2, we can see that only the estimated coefficient for `Model.1` is biased. As explained in the identification step, to identify the causal effect of indoor air temperature $(\text{T})$ on productivity $(\text{P})$, we need to block the backdoor path (i.e., the non-causal path) $\text{T} \leftarrow \text{H} \rightarrow \text{P}$. Fitting a separate regression model to the subset of data with `H == 'classic'` and one to `H == 'alternative'` is equivalent to conditioning for $\text{H}$, closing the backdoor path and allowing unbiased estimation of the causal effect of indoor air temperature $(\text{T})$ on productivity $(\text{P})$ (although this comes at the price of a larger standard error and consequently wider credible interval compared to `Model.2`, where $\text{H}$ is added as a predictor).
 
 </details>
 

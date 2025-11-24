@@ -18,7 +18,7 @@ library(rstan)
 
 ## Data-generating process
 
-The data-generating process is described via the directed acyclic graph (DAG) in @fig-DAG.ex3-1. In this DAG, window $(\text{W})$ influences perceived warmth $(\text{P})$ both directly and indirectly, passing through daylight $(\text{D})$. Additionally, window $(\text{W})$ also influences indirectly visual comfort $(\text{V})$ through daylight $(\text{D})$.
+The data-generating process is described via the directed acyclic graph (DAG) in @fig-DAG.ex3-1. In this DAG, window $(\text{W})$ influences perceived warmth $(\text{P})$ both directly and indirectly, passing through daylight $(\text{D})$. Additionally, window $(\text{W})$ also indirectly influences visual comfort $(\text{V})$ through daylight $(\text{D})$.
 
 ```{r}
 #| label: fig-DAG.ex3-1
@@ -43,14 +43,23 @@ DAG.ex3 <-
          V ~ D,
          coords = dag_coords.ex3)
 
+node_labels <- c(
+  W = 'bold(W)', 
+  D = 'bold(D)', 
+  V = 'bold(V)', 
+  P = 'bold(P)'
+)
+
 ggplot(data = DAG.ex3, aes(x = x, y = y, xend = xend, yend = yend)) +
-  geom_dag_text(colour = 'black', size = 10, parse = TRUE,
-                family = c('mono'),
-                label = c(expression(bold(D)), expression(bold(P)), expression(bold(V)), expression(bold(W)))) +
+  geom_dag_text(aes(label = node_labels[name]),
+                parse = TRUE,
+                colour = 'black',
+                size = 10,
+                family = 'mono') +
   geom_dag_edges(arrow_directed = grid::arrow(length = grid::unit(10, 'pt'), type = 'open'),
                  edge_colour = 'black',
-                 family = c('mono'), 
-                 fontface = c('bold')) + 
+                 family = 'mono',
+                 fontface = 'bold') +
   annotate('text', x = 1, y = 3.3, label = 'window shading', 
            size = 4, hjust = 0.5, colour = 'grey50') +
   annotate('text', x = 3.5, y = 1.7, label = 'daylight', 
@@ -128,11 +137,11 @@ ex3_sample.random
 
 ## Data analysis
 
-In this example, the target of our analysis is the total average causal effect, ACE (also known as total average treatment effect, ATE) of window $(\text{W})$ on perceived warmth $(\text{P})$, which stands for the expected increase of $\text{P}$ in response to a unit increase in $\text{W}$ due to an intervention.The causal effect of interest is visualized in @fig-DAG.ex3-2.
+In this example, the target of our analysis is the total average causal effect, ACE (also known as total average treatment effect, ATE) of window $(\text{W})$ on perceived warmth $(\text{P})$, which stands for the expected increase of $\text{P}$ in response to a unit increase in $\text{W}$ due to an intervention. The causal effect of interest is visualized in @fig-DAG.ex3-2.
 
 ```{r}
 #| label: fig-DAG.ex3-2
-#| fig-cap: 'Graphical representation via DAG of the data-generating process. The green line indicates the causal question of interest, and the number on the path indicates the total average causal effect.'
+#| fig-cap: 'Graphical representation via DAG of the data-generating process. The green lines indicate the causal question of interest, and the black number indicates the total average causal effect (the grey numbers with parentheses indicate the causal effect between the two variables connected by the corresponding path).'
 #| fig-cap-location: bottom
 #| fig-align: center
 #| fig-width: 4.5
@@ -150,13 +159,15 @@ ggplot(data = DAG.ex3, aes(x = x, y = y, xend = xend, yend = yend)) +
                linewidth = 14, lineend = 'round', colour = '#009E73', alpha = 0.05) +
   geom_segment(x = 3.5, xend = 6, y = 2, yend = 3,
                linewidth = 14, lineend = 'round', colour = '#009E73', alpha = 0.05) +
-  geom_dag_text(colour = 'black', size = 10, parse = TRUE,
-                family = c('mono'),
-                label = c(expression(bold(D)), expression(bold(P)), expression(bold(V)), expression(bold(W)))) +
+  geom_dag_text(aes(label = node_labels[name]),
+                parse = TRUE,
+                colour = 'black',
+                size = 10,
+                family = 'mono') +
   geom_dag_edges(arrow_directed = grid::arrow(length = grid::unit(10, 'pt'), type = 'open'),
                  edge_colour = 'black',
-                 family = c('mono'), 
-                 fontface = c('bold')) + 
+                 family = 'mono',
+                 fontface = 'bold') +
   annotate('text', x = 1, y = 3.3, label = 'window shading', 
            size = 4, hjust = 0.5, colour = 'grey50') +
   annotate('text', x = 3.5, y = 1.7, label = 'daylight', 
@@ -190,7 +201,7 @@ Given its simplicity, we will first apply the backdoor criterion to identify val
 
 #### Backdoor criterion
 
-Applying the backdoor criterion revealed the absence of any backdoor path (i.e., a non-causal path) from window $(\text{W})$ to perceived warmth $(\text{P})$. As a result, there is no confounding and no adjustement is required.
+Applying the backdoor criterion revealed the absence of any backdoor path (i.e., a non-causal path) from window $(\text{W})$ to perceived warmth $(\text{P})$. As a result, there is no confounding and no adjustment is required.
 
 Given the DAG in @fig-DAG.ex3-2, we can use the `adjustmentSets()` function to identify the adjustment set algorithmically. It is essential to note that this function applies the adjustment criterion and not the backdoor criterion. As such, the `adjustmentSets()` function can find adjustment sets even when the backdoor criterion is not applicable.
 
@@ -231,10 +242,10 @@ data.frame(colA = c('Research question', rep('Assumptions', 6), rep('Variables',
                     'No confounding: the DAG includes all shared causes among the variables.',
                     'No model error: perfect functional form specification.',
                     'No measurement error: all variables are measured perfectly.', 
-                    "Window opening (W): continous variable [unit: -]",
-                    'Daylight (D): continous variable [unit: lux]',
-                    'Perceived warmth (P): continous variable [unit: -]',
-                    "Visual comfort (V): continous variable [unit: -]")) %>%
+                    "Window opening (W): continuous  variable [unit: -]",
+                    'Daylight (D): continuous  variable [unit: lux]',
+                    'Perceived warmth (P): continuous  variable [unit: -]',
+                    "Visual comfort (V): continuous  variable [unit: -]")) %>%
   group_by(colA) %>% 
   mutate(colA = ifelse(row_number() == 1, colA, '')) %>% 
   ungroup() %>% 
@@ -252,7 +263,7 @@ data.frame(colA = c('Research question', rep('Assumptions', 6), rep('Variables',
 
 ```
 
-To carry out the estimation step, we utilised linear regression within both the frequentist and Bayesian frameworks. Specifically, we will run three regression models:
+To carry out the estimation step, we utilized linear regression within both the frequentist and Bayesian frameworks. Specifically, we will run three regression models:
 
 -   `Model.1` will include only window $(\text{W})$ as predictor;
 -   `Model.2` will include window $(\text{W})$ and daylight $(\text{D})$ as predictors.
@@ -336,7 +347,7 @@ ggplot(aes(x = estimate, y = model, xmin = lower.95.CI, xmax = upper.95.CI)) +
 
 ```
 
-@fig-DAG.ex3-estimate shows the estimates (point estimate and 95 confidence interval) of the coefficient for window shading for `Model.1`, `Model.2` and `Model.3`.
+@fig-DAG.ex3-estimate shows the estimates (point estimate and 95% confidence interval) of the coefficient for window shading for `Model.1`, `Model.2` and `Model.3`.
 
 For `Model.1` we found a positive coefficient between window $(\text{W})$ and perceived warmth $(\text{P})$ equal to `r sprintf(coef(ex3_Model.1)['W'], fmt = '%#.3f')` with 95% CI \[`r sprintf(confint(ex3_Model.1, level = 0.95, type = 'Wald')['W', ], fmt = '%#.3f')`\]. Since the 95% CI excludes zero, the regression coefficient is statistically significantly different from zero at the 0.05 level (p-value = `r sprintf('%.3g', summary(ex3_Model.1)$coef['W', 4])`). Additionally, since the 95% CI includes the data-generating parameter for window opening (i.e., `b_win = 0.5`), we can deduce that the estimated coefficient for window opening is not statistically significantly different from 0.5 at the 0.05 level (although this will be the case for all numbers within the 95% confidence interval). We can test this more formally by using the `linearHypothesis()` function. Specifically,
 
@@ -345,7 +356,7 @@ For `Model.1` we found a positive coefficient between window $(\text{W})$ and pe
 car::linearHypothesis(ex3_Model.1, 'W = 0.5') # car:: access the function from the car package without loading it in the environment 
 ```
 
-The resulting p-value is `r sprintf('%.3g', car::linearHypothesis(ex3_Model.1, 'W = 0.5')[2,'Pr(>F)'])`, which indicates that we fail to reject the null hypothesis (i.e., `W = 0.5`) at the 0.05 level. This result suggests that the regression coefficient for window (i.e., `r sprintf(coef(ex3_Model.1)['W'], fmt = '%#.3f')`) is not statistically significantly different from 0.5. Since the estimated causal effect from `Model.1` is unbiased, we would correctly conclude that that an increase of unit in window opening causes an increase in perceived warmth by `r sprintf(coef(ex3_Model.1)['W'], fmt = '%#.3f')` units (95% CI \[`r sprintf(confint(ex3_Model.1, level = 0.95, type = 'Wald')['W', ], fmt = '%#.3f')`\]).
+The resulting p-value is `r sprintf('%.3g', car::linearHypothesis(ex3_Model.1, 'W = 0.5')[2,'Pr(>F)'])`, which indicates that we fail to reject the null hypothesis (i.e., `W = 0.5`) at the 0.05 level. This result suggests that the regression coefficient for window (i.e., `r sprintf(coef(ex3_Model.1)['W'], fmt = '%#.3f')`) is not statistically significantly different from 0.5. Since the estimated causal effect from `Model.1` is unbiased, we would correctly conclude that an increase of unit in window opening causes an increase in perceived warmth by `r sprintf(coef(ex3_Model.1)['W'], fmt = '%#.3f')` units (95% CI \[`r sprintf(confint(ex3_Model.1, level = 0.95, type = 'Wald')['W', ], fmt = '%#.3f')`\]).
 
 For `Model.2` we found a negative coefficient between window $(\text{W})$ and perceived warmth $(\text{P})$ equal to `r sprintf(coef(ex3_Model.2)['W'], fmt = '%#.3f')` with 95% CI \[`r sprintf(confint(ex3_Model.2, level = 0.95, type = 'Wald')['W', ], fmt = '%#.3f')`\]. Since the 95% CI excludes zero, the regression coefficient is statistically significantly different from zero at the 0.05 level (p-value = `r sprintf('%.3g', summary(ex3_Model.2)$coef['W', 4])`). Additionally, since the 95% CI does not include the data-generating parameter for window opening (i.e., `b_win = 0.5`), we can deduce that the estimated coefficient for window opening is statistically significantly different from 0.5 at the 0.05 level. We can test this more formally by using the `linearHypothesis()` function. Specifically,
 
@@ -478,7 +489,7 @@ coverage <- coefs_ex3 %>%
 
 @fig-DAG.ex3-CI shows the first 200 estimates (point estimate and confidence interval) of the causal effect of window for `Model.1`, `Model.2` and `Model.3`. If all the thousand simulations are considered, the frequency of the coverage of the calculated confidence intervals (i.e., how many times the confidence intervals overlap the data-generating parameter) is `r coverage[1, 'mean.coverage']`, `r coverage[2, 'mean.coverage']` and `r coverage[3, 'mean.coverage']` for `Model.1`, `Model.2` and `Model.3`, respectively. Since the estimate of the causal effect for `Model.2` and `Model.3` are biased, the calculated confidence intervals for these models do not have the expected coverage. In fact, confidence intervals only quantify the uncertainty due to random error (i.e., sample variability), not systematic error (i.e., bias). Instead, the estimates from `Model.1` are unbiased and the calculated 95% confidence intervals have the expected coverage (i.e., overlap the data-generating parameter 95% of the times).
 
-We can also visualize all the 1,000 the estimates of the coefficient for window shading for `Model.1`, `Model.2` and `Model.3` (i.e., the white dots in @fig-DAG.ex3-CI).
+We can also visualize all the 1,000 estimates of the coefficient for window shading for `Model.1`, `Model.2` and `Model.3` (the estimates were shown as white dots in @fig-DAG.ex3-CI).
 
 ```{r}
 #| label: fig-DAG.ex3-mean-estimate
@@ -522,7 +533,7 @@ mean.estimate <- coefs_ex3 %>%
 
 In @fig-DAG.ex3-mean-estimate, the estimated coefficients are visualized through a histogram. Here, we can see that the estimates for `Model.2` and `Model.3` are not clustered around the data-generating parameter (blue dashed line) having a mean estimate of `r sprintf(mean.estimate[2, 'mean.estimate'], fmt = '%#.3f')` (with `r sprintf(mean.estimate[2, 'sd.estimate'], fmt = '%#.3f')` standard deviation) and `r sprintf(mean.estimate[3, 'mean.estimate'], fmt = '%#.3f')` (with `r sprintf(mean.estimate[3, 'sd.estimate'], fmt = '%#.3f')` standard deviation), respectively. In contrast, the estimates for `Model.1` having a mean estimate of `r sprintf(mean.estimate[1, 'mean.estimate'], fmt = '%#.3f')` (with `r sprintf(mean.estimate[1, 'sd.estimate'], fmt = '%#.3f')` standard deviation) are centered around the data-generating parameter.
 
-As expected, since there is no backdoor path open, regressing perceived warmth $(\text{P})$ on window $(\text{W})$ (i.e., using `Model.1`) leads to the correct estimate of the total average causal effect. However, when daylight is included as a predictor (i.e., using `Model.2`) the estimates are biased. Adjusting for daylight blocks a part of the causal effect. This happens because daylight is a mediator on the path from window $(\text{W})$ to perceived warmth $(\text{P})$. This bias is known as post-treatment bias. Additionally, we have a biased estimate of the total average causal effect of window $(\text{W})$ on perceived warmth $(\text{P})$ when we include visual comfort $(\text{V})$ as a predictor (i.e., using `Model.3`). This happens because visual comfort $(\text{V})$ is a descendant of daylight $(\text{D})$; consequently, adjusting for visual comfort $(\text{V})$ is akin to adjusting for daylight $(\text{D})$ since the two variables share information (daylight is the cause of visual comfort).
+As expected, since there is no backdoor path open, regressing perceived warmth $(\text{P})$ on window $(\text{W})$ (i.e., using `Model.1`) leads to the correct estimate of the total average causal effect. However, when daylight is included as a predictor (i.e., using `Model.2`), the estimates are biased. Adjusting for daylight blocks a part of the causal effect. This happens because daylight is a mediator on the path from window $(\text{W})$ to perceived warmth $(\text{P})$. This bias is known as post-treatment bias. Additionally, we have a biased estimate of the total average causal effect of window $(\text{W})$ on perceived warmth $(\text{P})$ when we include visual comfort $(\text{V})$ as a predictor (i.e., using `Model.3`). This happens because visual comfort $(\text{V})$ is a descendant of daylight $(\text{D})$; consequently, adjusting for visual comfort $(\text{V})$ is akin to adjusting for daylight $(\text{D})$ since the two variables share information (daylight is the cause of visual comfort).
 
 #### Bayesian framework
 
@@ -593,7 +604,7 @@ ex3_Model.3 <- stan_glm(formula = P ~ W + V,
 ex3_Model.3
 ```
 
-In Bayesian analysis, there are important diagnostics that have to be carried out in order to assessed the convergence and efficiency of the Markov Chains. This is done by using the `monitor()` function which computes summaries of MCMC (Markov Chain Monte Carlo) draws and monitor convergence. Specifically, we will look at `Rhat`, `Bulk_ESS` and `Tail_ESS` metrics.
+In Bayesian analysis, there are important diagnostics that have to be carried out in order to assess the convergence and efficiency of the Markov Chains. This is done by using the `monitor()` function which computes summaries of MCMC (Markov Chain Monte Carlo) draws and monitor convergence. Specifically, we will look at `Rhat`, `Bulk_ESS` and `Tail_ESS` metrics.
 
 ```{r}
 #Diagnostics for model 1
@@ -614,8 +625,8 @@ monitor(ex3_Model.3$stanfit)
 
 `Bulk_ESS` and `Tail_ESS` stand for 'Bulk Effective Sample Size' and 'Tail Effective Sample Size,' respectively. Since MCMC samples are not truly independent (they are correlated), these metrics assess the sampling efficiencies, that is, they help evaluating how efficiently the MCMC sampler is exploring the parameters space.
 
--   `Bulk_ESS` is useful measure for sampling efficiency in the bulk (center) of the distribution (e.g., efficiency of mean and median estimates);
--   `Tail_ESS` is useful measure for sampling efficiency in the tails of the distribution (e.g., efficiency of variance and tail quantile estimates). A general rule of thumb is that both `Bulk-ESS` and `Tail-ESS` should be at least 100 (approximately) per Markov Chain in order to be reliable and indicate that estimates of respective posterior quantiles are reliable. In our three models, all `Bulk-ESS` and `Tail-ESS` are well above 400 (i.e., 100 multiplied by 4, the number of chains we used) indicating that estimates of posterior quantiles are reliable.
+-   `Bulk_ESS` is a useful measure for sampling efficiency in the bulk (center) of the distribution (e.g., efficiency of mean and median estimates);
+-   `Tail_ESS` is a useful measure for sampling efficiency in the tails of the distribution (e.g., efficiency of variance and tail quantile estimates). A general rule of thumb is that both `Bulk-ESS` and `Tail-ESS` should be at least 100 (approximately) per Markov Chain in order to be reliable and indicate that estimates of respective posterior quantiles are reliable. In our three models, all `Bulk-ESS` and `Tail-ESS` are well above 400 (i.e., 100 multiplied by 4, the number of chains we used) indicating that estimates of posterior quantiles are reliable.
 
 Since we have established that the posteriors are reliable, we can now explore the model estimates.
 
@@ -656,9 +667,9 @@ plot.post <- rbind(post_ex3_Model.1, post_ex3_Model.2, post_ex3_Model.3)
 # Plot
 plot.post  %>%
   ggplot(aes(y = model, x = W)) +
-  geom_vline(xintercept = b_win, alpha = 0.8, linetype = 'dashed', colour = 'blue') + 
   stat_slabinterval(point_interval = 'mean_hdi',
                     .width = c(.95)) +
+  geom_vline(xintercept = b_win, alpha = 0.8, linetype = 'dashed', colour = 'blue') + 
   scale_x_continuous('Estimate', 
                      breaks = seq(from = -5, to = 5, by = 0.25),
                      limits = c(-0.85, 0.55)) +
@@ -674,10 +685,10 @@ plot.post  %>%
 plot.post_mean.hdi <- 
   plot.post %>% 
   group_by(model) %>%
-  mean_hdi(.width = .95) #calculate 95 highest density intervals (HDI)
+  mean_hdi(.width = .95) #calculate 95% highest density intervals (HDI)
 ```
 
-@fig-DAG.ex3-estimate-Bayesian shows the estimates (mean and 95 HDI) of the coefficient for window shading for `Model.1`, `Model.2` and `Model.3`.
+@fig-DAG.ex3-estimate-Bayesian shows the estimates (mean and 95% HDI) of the coefficient for window shading for `Model.1`, `Model.2` and `Model.3`.
 
 For `Model.1` we found a positive coefficient between window $(\text{W})$ and perceived warmth $(\text{P})$ (mean = `r sprintf(plot.post_mean.hdi[1, 'W'], fmt = '%#.3f')`, 95% HDI \[`r sprintf(plot.post_mean.hdi[1, '.lower'], fmt = '%#.3f')`, `r sprintf(plot.post_mean.hdi[1, '.upper'], fmt = '%#.3f')`\]). The estimated causal effect is unbiased, leading to the correct conclusion that an increase of unit in window opening causes an increase in perceived warmth by `r sprintf(plot.post_mean.hdi[1, 'W'], fmt = '%#.3f')` units, on average.
 

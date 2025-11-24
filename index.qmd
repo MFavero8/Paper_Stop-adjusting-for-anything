@@ -11,3 +11,22 @@ However, it is important to note that this notebook is not intended and should n
 This document was written by Matteo Favero and Jian Pan with feedback from Andrew Sonta, Ruiji Sun, and Marcel Schweiker.
 
 This work is openly licensed via a Creative Commons Attribution 4.0 International ([CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)).
+
+For attribution, please cite this work as (BibTeX citation):
+
+```{r}
+#| eval: false
+
+@article{PJ2025114002,
+  title = {Stop adjusting for anything: How the backdoor and adjustment criteria empower causal human-centric research},
+  author = {Pan, Jian and  Favero, Matteo and Sonta, Andrew and Sun, Ruiji and Damrath, Julia and Schweiker, Marcel},
+  journal = {Building and Environment},
+  pages = {114002},
+  year = {2025},
+  issn = {0360-1323},
+  doi = {https://doi.org/10.1016/j.buildenv.2025.114002}
+}
+
+```
+
+The corresponding primary article can be found at <https://doi.org/10.1016/j.buildenv.2025.114002>.
