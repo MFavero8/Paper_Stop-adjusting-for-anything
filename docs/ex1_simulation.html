@@ -372,7 +372,7 @@ window.Quarto = {
 <span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/coord_cartesian.html">coord_cartesian</a></span><span class="op">(</span>xlim <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html">c</a></span><span class="op">(</span><span class="fl">0.5</span>, <span class="fl">6.5</span><span class="op">)</span>, ylim <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html">c</a></span><span class="op">(</span><span class="fl">0.8</span>, <span class="fl">3.2</span><span class="op">)</span><span class="op">)</span>  <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://r-causal.github.io/ggdag/reference/theme_dag_blank.html">theme_dag</a></span><span class="op">(</span><span class="op">)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details><div class="cell-output-display">
-<div id="fig-DAG.ex1-1" class="quarto-float quarto-figure quarto-figure-center anchored" data-cap-location="bottom" data-fig-align="center">
+<div id="fig-DAG.ex1-1" class="quarto-float quarto-figure quarto-figure-center anchored" data-fig-align="center" data-cap-location="bottom">
 <figure class="quarto-float quarto-float-fig figure"><div aria-describedby="fig-DAG.ex1-1-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 <img src="ex1_simulation_files/figure-html/fig-DAG.ex1-1-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:60.0%">
 </div>
@@ -496,7 +496,7 @@ Fig.&nbsp;1.1. Graphical representation via DAG of the data-generating process.
 <span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/coord_cartesian.html">coord_cartesian</a></span><span class="op">(</span>xlim <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html">c</a></span><span class="op">(</span><span class="fl">0.5</span>, <span class="fl">6.5</span><span class="op">)</span>, ylim <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html">c</a></span><span class="op">(</span><span class="fl">0.8</span>, <span class="fl">3.2</span><span class="op">)</span><span class="op">)</span>  <span class="op">+</span></span>
 <span>  <span class="fu"><a href="https://r-causal.github.io/ggdag/reference/theme_dag_blank.html">theme_dag</a></span><span class="op">(</span><span class="op">)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details><div class="cell-output-display">
-<div id="fig-DAG.ex1-2" class="quarto-float quarto-figure quarto-figure-center anchored" data-cap-location="bottom" data-fig-align="center">
+<div id="fig-DAG.ex1-2" class="quarto-float quarto-figure quarto-figure-center anchored" data-fig-align="center" data-cap-location="bottom">
 <figure class="quarto-float quarto-float-fig figure"><div aria-describedby="fig-DAG.ex1-2-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 <img src="ex1_simulation_files/figure-html/fig-DAG.ex1-2-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" style="width:60.0%">
 </div>
@@ -1125,7 +1125,7 @@ F-statistic:  2892 on 2 and 4997 DF,  p-value: &lt; 2.2e-16</code></pre>
 <span>        panel.border <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html">element_rect</a></span><span class="op">(</span>colour <span class="op">=</span> <span class="st">'black'</span>, fill <span class="op">=</span> <span class="cn">NA</span><span class="op">)</span>,</span>
 <span>        axis.title.y <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html">element_blank</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details><div class="cell-output-display">
-<div id="fig-DAG.ex1-estimate" class="quarto-float quarto-figure quarto-figure-center anchored" data-cap-location="bottom" data-fig-align="center">
+<div id="fig-DAG.ex1-estimate" class="quarto-float quarto-figure quarto-figure-center anchored" data-fig-align="center" data-cap-location="bottom">
 <figure class="quarto-float quarto-float-fig figure"><div aria-describedby="fig-DAG.ex1-estimate-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 <img src="ex1_simulation_files/figure-html/fig-DAG.ex1-estimate-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" width="5400">
 </div>
@@ -1136,7 +1136,7 @@ Fig.&nbsp;1.3. Estimates of the temperature coefficient for the two models. The 
 </div>
 </div>
 <p><a href="#fig-DAG.ex1-estimate" class="quarto-xref">Fig.&nbsp;<span>1.3</span></a> shows the estimates (point estimate and 95% confidence interval) of the coefficient for temperature for <code>Model.1</code> and <code>Model.2</code>.</p>
-<p>For <code>Model.1</code> we found a positive coefficient between indoor air temperature <span class="math inline">\((\text{T})\)</span> and productivity <span class="math inline">\((\text{P})\)</span> equal to 0.715 with 95% CI [0.623, 0.807]. Since the 95% CI does not include zero, the regression coefficient is statistically significantly different from zero at the 0.05 level (p-value = 2.56e-51). Additionally, since the 95% CI does not include the data-generating parameter for indoor air temperature (i.e., <code>b_temp.prod = -1</code>), we can deduce that the estimated coefficient for indoor air temperature is statistically significantly different from -1 at the 0.05 level (although this will be the case for all numbers within the 95% confidence interval). We can test this more formally by using the <code>linearHypothesis()</code> function. Specifically,</p>
+<p>For <code>Model.1</code> we found a positive coefficient between indoor air temperature <span class="math inline">\((\text{T})\)</span> and productivity <span class="math inline">\((\text{P})\)</span> equal to 0.715 with 95% confidence interval (CI) [0.623, 0.807]. Since the 95% CI does not include zero, the regression coefficient is statistically significantly different from zero at the 0.05 level (p-value = 2.56e-51). Additionally, since the 95% CI does not include the data-generating parameter for indoor air temperature (i.e., <code>b_temp.prod = -1</code>), we can deduce that the estimated coefficient for indoor air temperature is statistically significantly different from -1 at the 0.05 level (although this will be the case for all numbers within the 95% confidence interval). We can test this more formally by using the <code>linearHypothesis()</code> function. Specifically,</p>
 <div class="cell">
 <div class="sourceCode" id="cb17"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="co">#Test for b_temp.prod = -1</span></span>
 <span><span class="fu">car</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/car/man/linearHypothesis.html">linearHypothesis</a></span><span class="op">(</span><span class="va">ex1_Model.1</span>, <span class="st">'T = -1'</span><span class="op">)</span> <span class="co"># car:: access the function from the car package without loading it in the environment </span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -1175,7 +1175,7 @@ Model 2: P ~ T + H
 </div>
 <p>The resulting p-value is 0.818, which indicates that we fail to reject the null hypothesis (i.e., <code>T = -1</code>) at the 0.05 level. This result suggests that the regression coefficient for indoor air temperature (i.e., -1.009) is not statistically significantly different from -1. Since the estimated causal effect from <code>Model.2</code> is unbiased, we would correctly conclude that an increase of 1°C in indoor air temperature causes a decrease in productivity by -1.009 units (95% CI [-1.088, -0.930]).</p>
 <p>Importantly, for both <code>Model.1</code> and <code>Model.2</code>, the 95% confidence interval means that if we were to repeat the sampling process and calculate the interval many times, 95% of those calculated intervals would contain the true population parameter. To highlight this, we can repeat the analysis by fitting the two models to one thousand data sets randomly selected from our population.</p>
-<p>The for-loop shown in the code below performs the following operations. First, sample (using simple random sample) a data set of 5,000 observations from the target population. Subsequently, perform linear regression using <code>Model.1</code> and <code>Model.2</code> and store the estimated coefficients for <code>temperature</code>, its standard error and 95% confidence interval in the data frame <code>coefs_ex1</code>. This operation is repeated a thousand times, resulting in the data frame <code>coefs_ex1</code> containing the estimates (point estimate, standard error and confidence interval) of a thousand random samples of size 5,000 using both <code>Model.1</code> and <code>Model.2</code>.</p>
+<p>The for-loop shown in the code below performs the following operations. First, sample (using simple random sampling) a data set of 5,000 observations from the target population. Subsequently, perform linear regression using <code>Model.1</code> and <code>Model.2</code> and store the estimated coefficients for <code>temperature</code>, its standard error and 95% confidence interval in the data frame <code>coefs_ex1</code>. This operation is repeated a thousand times, resulting in the data frame <code>coefs_ex1</code> containing the estimates (point estimate, standard error and confidence interval) of a thousand random samples of size 5,000 using both <code>Model.1</code> and <code>Model.2</code>.</p>
 <div class="cell">
 <div class="sourceCode" id="cb21"><pre class="downlit sourceCode r code-with-copy"><code class="sourceCode R"><span><span class="va">n_model</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html">c</a></span><span class="op">(</span><span class="st">'mod.1'</span>, <span class="st">'mod.2'</span><span class="op">)</span>     </span>
 <span></span>
@@ -1284,7 +1284,7 @@ Model 2: P ~ T + H
 <span>        panel.border <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html">element_rect</a></span><span class="op">(</span>colour <span class="op">=</span> <span class="st">'black'</span>, fill <span class="op">=</span> <span class="cn">NA</span><span class="op">)</span>,</span>
 <span>        axis.title.y <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html">element_blank</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details><div class="cell-output-display">
-<div id="fig-DAG.ex1-CI" class="quarto-float quarto-figure quarto-figure-center anchored" data-cap-location="bottom" data-fig-align="center">
+<div id="fig-DAG.ex1-CI" class="quarto-float quarto-figure quarto-figure-center anchored" data-fig-align="center" data-cap-location="bottom">
 <figure class="quarto-float quarto-float-fig figure"><div aria-describedby="fig-DAG.ex1-CI-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 <img src="ex1_simulation_files/figure-html/fig-DAG.ex1-CI-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" width="5400">
 </div>
@@ -1313,7 +1313,7 @@ Fig.&nbsp;1.4. Estimates of the temperature coefficient (only the first hundreds
 <span>        panel.background <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html">element_blank</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>        panel.border <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html">element_rect</a></span><span class="op">(</span>colour <span class="op">=</span> <span class="st">'black'</span>, fill <span class="op">=</span> <span class="cn">NA</span><span class="op">)</span><span class="op">)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details><div class="cell-output-display">
-<div id="fig-DAG.ex1-mean-estimate" class="quarto-float quarto-figure quarto-figure-center anchored" data-cap-location="bottom" data-fig-align="center">
+<div id="fig-DAG.ex1-mean-estimate" class="quarto-float quarto-figure quarto-figure-center anchored" data-fig-align="center" data-cap-location="bottom">
 <figure class="quarto-float quarto-float-fig figure"><div aria-describedby="fig-DAG.ex1-mean-estimate-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 <img src="ex1_simulation_files/figure-html/fig-DAG.ex1-mean-estimate-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" width="5400">
 </div>
@@ -1364,7 +1364,7 @@ Fig.&nbsp;1.5. Histogram of the 1,000 estimates of the temperature coefficient f
 <span>        panel.background <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html">element_blank</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>        panel.border <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html">element_rect</a></span><span class="op">(</span>colour <span class="op">=</span> <span class="st">'black'</span>, fill <span class="op">=</span> <span class="cn">NA</span><span class="op">)</span><span class="op">)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details><div class="cell-output-display">
-<div id="fig-DAG.ex1-paradox" class="quarto-float quarto-figure quarto-figure-center anchored" data-cap-location="bottom" data-fig-align="center">
+<div id="fig-DAG.ex1-paradox" class="quarto-float quarto-figure quarto-figure-center anchored" data-fig-align="center" data-cap-location="bottom">
 <figure class="quarto-float quarto-float-fig figure"><div aria-describedby="fig-DAG.ex1-paradox-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 <img src="ex1_simulation_files/figure-html/fig-DAG.ex1-paradox-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" width="5400">
 </div>
@@ -1446,7 +1446,7 @@ Coefficients:
 <span>        panel.border <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html">element_rect</a></span><span class="op">(</span>colour <span class="op">=</span> <span class="st">'black'</span>, fill <span class="op">=</span> <span class="cn">NA</span><span class="op">)</span>,</span>
 <span>        axis.title.y <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html">element_blank</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details><div class="cell-output-display">
-<div id="fig-DAG.ex1-estimate2" class="quarto-float quarto-figure quarto-figure-center anchored" data-cap-location="bottom" data-fig-align="center">
+<div id="fig-DAG.ex1-estimate2" class="quarto-float quarto-figure quarto-figure-center anchored" data-fig-align="center" data-cap-location="bottom">
 <figure class="quarto-float quarto-float-fig figure"><div aria-describedby="fig-DAG.ex1-estimate2-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 <img src="ex1_simulation_files/figure-html/fig-DAG.ex1-estimate2-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" width="5400">
 </div>
@@ -1543,11 +1543,11 @@ sigma 2.0    0.0
 <pre><code>Inference for the input samples (4 chains: each with iter = 4000; warmup = 0):
 
                     Q5      Q50      Q95     Mean  SD  Rhat Bulk_ESS Tail_ESS
-(Intercept)       39.0     40.6     42.2     40.6 1.0     1    11247     8442
-T                  0.6      0.7      0.8      0.7 0.0     1    11198     8547
-sigma              2.8      2.9      2.9      2.9 0.0     1    12436     8349
-mean_PPD          55.9     55.9     56.0     55.9 0.1     1    12083    10586
-log-posterior -12372.2 -12369.4 -12368.4 -12369.7 1.2     1     5253     7299
+(Intercept)       39.0     40.6     42.2     40.6 1.0     1    11517     8203
+T                  0.6      0.7      0.8      0.7 0.0     1    11445     8323
+sigma              2.8      2.9      2.9      2.9 0.0     1    12774     8565
+mean_PPD          55.9     55.9     56.0     55.9 0.1     1    12512    11016
+log-posterior -12372.1 -12369.4 -12368.4 -12369.7 1.2     1     5351     7267
 
 For each parameter, Bulk_ESS and Tail_ESS are crude measures of 
 effective sample size for bulk and tail quantities respectively (an ESS &gt; 100 
@@ -1562,12 +1562,12 @@ factor on rank normalized split chains (at convergence, Rhat &lt;= 1.05).</code>
 <pre><code>Inference for the input samples (4 chains: each with iter = 4000; warmup = 0):
 
                     Q5      Q50      Q95     Mean  SD  Rhat Bulk_ESS Tail_ESS
-(Intercept)       73.7     75.1     76.6     75.1 0.9     1     9368     8706
-T                 -1.1     -1.0     -0.9     -1.0 0.0     1     9250     8793
-Halternative       5.0      5.1      5.2      5.1 0.1     1     9370     9269
-sigma              2.0      2.0      2.0      2.0 0.0     1    12753     7542
-mean_PPD          55.9     55.9     56.0     55.9 0.0     1    11634    11040
-log-posterior -10565.4 -10562.3 -10561.0 -10562.6 1.4     1     5975     7387
+(Intercept)       73.7     75.1     76.5     75.1 0.9     1     8648     8845
+T                 -1.1     -1.0     -0.9     -1.0 0.0     1     8495     8786
+Halternative       5.0      5.1      5.2      5.1 0.1     1     8517     8685
+sigma              2.0      2.0      2.0      2.0 0.0     1    12597     8666
+mean_PPD          55.9     55.9     56.0     55.9 0.0     1    11453    11001
+log-posterior -10565.3 -10562.3 -10561.0 -10562.6 1.4     1     5905     7324
 
 For each parameter, Bulk_ESS and Tail_ESS are crude measures of 
 effective sample size for bulk and tail quantities respectively (an ESS &gt; 100 
@@ -1576,7 +1576,7 @@ factor on rank normalized split chains (at convergence, Rhat &lt;= 1.05).</code>
 </div>
 </div>
 <p><code>Rhat</code> is a metric used to assess the convergence of Markov Chain Monte Carlo (MCMC) simulations. It helps determine if the MCMC chains have adequately explored the target posterior distribution. Specifically, it compares the between- and within-chain estimates for model parameters: If chains have not mixed well (i.e., the between- and within-chain estimates do not agree), R-hat is larger than 1. A general rule of thumb is to use the sample only if R-hat is less than 1.05; a larger value suggests that the chains have not mixed well, and the results might not be reliable. In our two models, all <code>Rhat</code> are equal to 1 indicating that the chains have mixed well and have adequately explored the target posterior distribution.</p>
-<p><code>Bulk_ESS</code> and <code>Tail_ESS</code> stand for ‘Bulk Effective Sample Size’ and ‘Tail Effective Sample Size,’ respectively. Since MCMC samples are not truly independent (they are correlated), these metrics assess the sampling efficiencies, that is, they help evaluating how efficiently the MCMC sampler is exploring the parameters space.</p>
+<p><code>Bulk_ESS</code> and <code>Tail_ESS</code> stand for ‘Bulk Effective Sample Size’ and ‘Tail Effective Sample Size,’ respectively. Since MCMC samples are not truly independent (they are correlated), these metrics assess the sampling efficiencies, that is, they help evaluate how efficiently the MCMC sampler is exploring the parameter space.</p>
 <ul>
 <li>
 <code>Bulk_ESS</code> is a useful measure for sampling efficiency in the bulk (center) of the distribution (e.g., efficiency of mean and median estimates);</li>
@@ -1615,7 +1615,7 @@ factor on rank normalized split chains (at convergence, Rhat &lt;= 1.05).</code>
 <span>        panel.border <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html">element_rect</a></span><span class="op">(</span>colour <span class="op">=</span> <span class="st">'black'</span>, fill <span class="op">=</span> <span class="cn">NA</span><span class="op">)</span>,</span>
 <span>        axis.title.y <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html">element_blank</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details><div class="cell-output-display">
-<div id="fig-DAG.ex1-estimate-Bayesian" class="quarto-float quarto-figure quarto-figure-center anchored" data-cap-location="bottom" data-fig-align="center">
+<div id="fig-DAG.ex1-estimate-Bayesian" class="quarto-float quarto-figure quarto-figure-center anchored" data-fig-align="center" data-cap-location="bottom">
 <figure class="quarto-float quarto-float-fig figure"><div aria-describedby="fig-DAG.ex1-estimate-Bayesian-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 <img src="ex1_simulation_files/figure-html/fig-DAG.ex1-estimate-Bayesian-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" width="5400">
 </div>
@@ -1626,8 +1626,8 @@ Fig.&nbsp;1.8. Posterior distribution of the temperature coefficient for the two
 </div>
 </div>
 <p><a href="#fig-DAG.ex1-estimate-Bayesian" class="quarto-xref">Fig.&nbsp;<span>1.8</span></a> shows the estimates (mean and 95% HDI) of the coefficient for temperature for <code>Model.1</code> and <code>Model.2</code>.</p>
-<p>For <code>Model.1</code> we found a positive coefficient between indoor air temperature <span class="math inline">\((\text{T})\)</span> and productivity <span class="math inline">\((\text{P})\)</span> (mean = 0.715, 95% HDI [0.622, 0.802]). The estimated causal effect is therefore biased, leading to the wrong conclusion that an increase of 1°C in indoor air temperature causes an increase in productivity by 0.715 units, on average. In contrast, for <code>Model.2</code> we found a negative coefficient between indoor air temperature <span class="math inline">\((\text{T})\)</span> and productivity <span class="math inline">\((\text{P})\)</span> (mean = -1.009, 95% HDI [-1.089, -0.929]). The estimated causal effect is therefore unbiased, leading to the correct conclusion that an increase of 1°C in indoor air temperature causes a decrease in productivity by -1.009 units, on average.</p>
-<p>Importantly, for both <code>Model.1</code> and <code>Model.2</code>, the 95% HDI is the range of parameter values within which the most credible 95% of the posterior distribution falls. Unlike frequentist confidence interval, the Bayesian 95% HDI has a direct probabilistic meaning: every point inside the HDI has a higher probability density than any point outside the interval. Therefore, given the model, the prior and the data, we can say that there is a 95% probability that the data-generating parameter (i.e., <code>b_temp.prod = -1</code>) lies within the HDI. However, since <code>Model.1</code> leads to a biased estimate, we will reach the wrong conclusion by stating that there is a 95% probability that the data-generating parameter lies within the [0.622, 0.802] interval. This probability is 0%.</p>
+<p>For <code>Model.1</code> we found a positive coefficient between indoor air temperature <span class="math inline">\((\text{T})\)</span> and productivity <span class="math inline">\((\text{P})\)</span> (mean = 0.714, 95% HDI [0.624, 0.803]). The estimated causal effect is therefore biased, leading to the wrong conclusion that an increase of 1°C in indoor air temperature causes an increase in productivity by 0.714 units, on average. In contrast, for <code>Model.2</code> we found a negative coefficient between indoor air temperature <span class="math inline">\((\text{T})\)</span> and productivity <span class="math inline">\((\text{P})\)</span> (mean = -1.008, 95% HDI [-1.087, -0.929]). The estimated causal effect is therefore unbiased, leading to the correct conclusion that an increase of 1°C in indoor air temperature causes a decrease in productivity by -1.008 units, on average.</p>
+<p>Importantly, for both <code>Model.1</code> and <code>Model.2</code>, the 95% HDI is the range of parameter values within which the most credible 95% of the posterior distribution falls. Unlike a frequentist confidence interval, the Bayesian 95% HDI has a direct probabilistic meaning: every point inside the HDI has a higher probability density than any point outside the interval. Therefore, given the model, the prior and the data, we can say that there is a 95% probability that the data-generating parameter (i.e., <code>b_temp.prod = -1</code>) lies within the HDI. However, since <code>Model.1</code> leads to a biased estimate, we will reach the wrong conclusion by stating that there is a 95% probability that the data-generating parameter lies within the [0.624, 0.803] interval. This probability is 0%.</p>
 <p>As expected, the inclusion of HVAC system <span class="math inline">\((\text{H})\)</span> in the regression model (i.e., using <code>Model.2</code>) leads to the correct estimate of the total average causal effect, while its exclusion (i.e., using <code>Model.1</code>) leads to bias. Specifically, the estimated effect is reversed. This phenomenon is known as Simpson’s Paradox. Generally, Simpson’s Paradox happens when a trend that appears in different groups of data reverses (or disappears) when the groups are combined.</p>
 <p>To better explain this apparent paradox, we can plot the data and the fitted regression lines for only the data with <code>HVAC = classic</code>, the data with <code>HVAC = alternative</code>, and the data combined (i.e., without considering the groups).</p>
 <div class="cell fig-cap-location-bottom" data-layout-align="center">
@@ -1676,7 +1676,7 @@ Fig.&nbsp;1.8. Posterior distribution of the temperature coefficient for the two
 <span>        panel.background <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html">element_blank</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>        panel.border <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html">element_rect</a></span><span class="op">(</span>colour <span class="op">=</span> <span class="st">'black'</span>, fill <span class="op">=</span> <span class="cn">NA</span><span class="op">)</span><span class="op">)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details><div class="cell-output-display">
-<div id="fig-DAG.ex1-paradox-Bayesian" class="quarto-float quarto-figure quarto-figure-center anchored" data-cap-location="bottom" data-fig-align="center">
+<div id="fig-DAG.ex1-paradox-Bayesian" class="quarto-float quarto-figure quarto-figure-center anchored" data-fig-align="center" data-cap-location="bottom">
 <figure class="quarto-float quarto-float-fig figure"><div aria-describedby="fig-DAG.ex1-paradox-Bayesian-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 <img src="ex1_simulation_files/figure-html/fig-DAG.ex1-paradox-Bayesian-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" width="5400">
 </div>
@@ -1804,7 +1804,7 @@ sigma 2.0    0.0
 <span>        panel.border <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html">element_rect</a></span><span class="op">(</span>colour <span class="op">=</span> <span class="st">'black'</span>, fill <span class="op">=</span> <span class="cn">NA</span><span class="op">)</span>,</span>
 <span>        axis.title.y <span class="op">=</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/element.html">element_blank</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details><div class="cell-output-display">
-<div id="fig-DAG.ex1-estimate-Bayesian2" class="quarto-float quarto-figure quarto-figure-center anchored" data-cap-location="bottom" data-fig-align="center">
+<div id="fig-DAG.ex1-estimate-Bayesian2" class="quarto-float quarto-figure quarto-figure-center anchored" data-fig-align="center" data-cap-location="bottom">
 <figure class="quarto-float quarto-float-fig figure"><div aria-describedby="fig-DAG.ex1-estimate-Bayesian2-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
 <img src="ex1_simulation_files/figure-html/fig-DAG.ex1-estimate-Bayesian2-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" width="5400">
 </div>

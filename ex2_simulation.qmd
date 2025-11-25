@@ -248,9 +248,9 @@ data.frame(colA = c('Research question', rep('Assumptions', 6), rep('Variables',
                     'No confounding: the DAG includes all shared causes among the variables.',
                     'No model error: perfect functional form specification.',
                     'No measurement error: all variables are measured perfectly.', 
-                    'Social interaction (T): discrete (count) variable [unit: -]',
+                    'Social interaction (I): discrete (count) variable [unit: -]',
                     "Occupancy (O): categorical variable ['low'; 'high']",
-                    'CO2 concentration (H): continuous variable [unit: ppm]',
+                    'CO2 concentration (C): continuous variable [unit: ppm]',
                     "Window state (W): categorical variable ['closed'; 'open']",
                     "Glare perception (G): continuous variable [unit: -]")) %>%
   group_by(colA) %>% 
@@ -356,7 +356,7 @@ ggplot(aes(x = estimate, y = model, xmin = lower.95.CI, xmax = upper.95.CI)) +
 
 @fig-DAG.ex2-estimate shows the estimates (point estimate and 95% confidence interval) of the coefficient for social interaction for `Model.1`, `Model.2` and `Model.3`.
 
-For `Model.1` we found a negative coefficient between social interaction $(\text{I})$ and glare perception $(\text{G})$ equal to `r sprintf(coef(ex2_Model.1)['I'], fmt = '%#.3f')` with 95% CI \[`r sprintf(confint(ex2_Model.1, level = 0.95, type = 'Wald')['I', ], fmt = '%#.3f')`\]. Since the 95% CI excludes zero, the regression coefficient is statistically significantly different from zero at the 0.05 level (p-value = `r sprintf('%.3g', summary(ex2_Model.1)$coef['I', 4])`). Additionally, since the 95% CI includes the data-generating parameter for social interaction (i.e., `b_socint.glare = -2`), we can deduce that the estimated coefficient for social interaction is not statistically significantly different from -2 at the 0.05 level. We can test this more formally by using the `linearHypothesis()` function. Specifically,
+For `Model.1` we found a negative coefficient between social interaction $(\text{I})$ and glare perception $(\text{G})$ equal to `r sprintf(coef(ex2_Model.1)['I'], fmt = '%#.3f')` with 95% confidence interval (CI) \[`r sprintf(confint(ex2_Model.1, level = 0.95, type = 'Wald')['I', ], fmt = '%#.3f')`\]. Since the 95% CI excludes zero, the regression coefficient is statistically significantly different from zero at the 0.05 level (p-value = `r sprintf('%.3g', summary(ex2_Model.1)$coef['I', 4])`). Additionally, since the 95% CI includes the data-generating parameter for social interaction (i.e., `b_socint.glare = -2`), we can deduce that the estimated coefficient for social interaction is not statistically significantly different from -2 at the 0.05 level. We can test this more formally by using the `linearHypothesis()` function. Specifically,
 
 ```{r}
 #Test for I = -2
@@ -385,7 +385,7 @@ The resulting p-value is `r sprintf('%.3g', car::linearHypothesis(ex2_Model.3, '
 
 Importantly, for `Model.1`, `Model.2`, and `Model.3`, the 95% confidence interval means that if we were to repeat the sampling process and calculate the interval many times, 95% of those calculated intervals would contain the true population parameter. To highlight this, we can repeat the analysis by fitting the three models to one thousand data sets randomly selected from our population.
 
-The for-loop shown in the code below performs the following operations. First, sample (using simple random sample) a data set of 5,000 observations from the target population. Subsequently, perform linear regression using `Model.1`, `Model.2` and `Model.3` and store the estimated coefficients for `interaction`, its standard error and 95% confidence interval in the data frame `coefs_ex2`. This operation is repeated a thousand times, resulting in the data frame `coefs_ex2` containing the estimates (point estimate, standard error and confidence interval) of a thousand random samples of size 5,000 using `Model.1`, `Model.2` and `Model.3`.
+The for-loop shown in the code below performs the following operations. First, sample (using simple random sampling) a data set of 5,000 observations from the target population. Subsequently, perform linear regression using `Model.1`, `Model.2` and `Model.3` and store the estimated coefficients for `interaction`, its standard error and 95% confidence interval in the data frame `coefs_ex2`. This operation is repeated a thousand times, resulting in the data frame `coefs_ex2` containing the estimates (point estimate, standard error and confidence interval) of a thousand random samples of size 5,000 using `Model.1`, `Model.2` and `Model.3`.
 
 ```{r}
 n_model <- c('mod.1', 'mod.2', 'mod.3')     
@@ -630,7 +630,7 @@ monitor(ex2_Model.3$stanfit)
 
 `Rhat` is a metric used to assess the convergence of Markov Chain Monte Carlo (MCMC) simulations. It helps determine if the MCMC chains have adequately explored the target posterior distribution. Specifically, it compares the between- and within-chain estimates for model parameters: If chains have not mixed well (i.e., the between- and within-chain estimates do not agree), R-hat is larger than 1. A general rule of thumb is to use the sample only if R-hat is less than 1.05; a larger value suggests that the chains have not mixed well, and the results might not be reliable. In our three models, all `Rhat` are equal to 1 indicating that the chains have mixed well and have adequately explored the target posterior distribution.
 
-`Bulk_ESS` and `Tail_ESS` stand for 'Bulk Effective Sample Size' and 'Tail Effective Sample Size,' respectively. Since MCMC samples are not truly independent (they are correlated), these metrics assess the sampling efficiencies, that is, they help evaluate how efficiently the MCMC sampler is exploring the parameters space.
+`Bulk_ESS` and `Tail_ESS` stand for 'Bulk Effective Sample Size' and 'Tail Effective Sample Size,' respectively. Since MCMC samples are not truly independent (they are correlated), these metrics assess the sampling efficiencies, that is, they help evaluate how efficiently the MCMC sampler is exploring the parameter space.
 
 -   `Bulk_ESS` is a useful measure for sampling efficiency in the bulk (center) of the distribution (e.g., efficiency of mean and median estimates);
 -   `Tail_ESS` is a useful measure for sampling efficiency in the tails of the distribution (e.g., efficiency of variance and tail quantile estimates). A general rule of thumb is that both `Bulk-ESS` and `Tail-ESS` should be at least 100 (approximately) per Markov Chain in order to be reliable and indicate that estimates of respective posterior quantiles are reliable. In our three models, all `Bulk-ESS` and `Tail-ESS` are well above 400 (i.e., 100 multiplied by 4, the number of chains we used) indicating that estimates of posterior quantiles are reliable.
